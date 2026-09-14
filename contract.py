@@ -1,7 +1,5 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 # v0.1.0
-from dataclasses import dataclass
-
 import json
 
 from genlayer import *
@@ -294,44 +292,33 @@ def _run_compare_validation(escrow_id: str, condition_text: str, claim_text: str
     return data
 
 
-@allow_storage
-@dataclass
-class Escrow:
-    condition: str
-    claim_text: str
-    claim_links: str
-    payer: Address
-    beneficiary: Address
-    amount: u256
-    token: str
-    deadline: str
-    status: str
-    verdict: str
-    confidence: float
-    evidence_summary: str
-    reasoning: str
-    partial_details: str
-    appeal_round: u256
-    revised_checks: str
+def _load_escrow(escrows, escrow_id):
+    if escrow_id not in escrows:
+        raise gl.vm.UserError("escrow not found")
+    return json.loads(escrows[escrow_id])
 
 
-@allow_storage
-@dataclass
-class VerdictRecord:
-    escrow_id: str
-    stage: str
-    round: u256
-    verdict: str
-    confidence: float
-    evidence_summary: str
-    reasoning: str
-    details: str
+def _log_verdict(verdict_log, escrow_id, stage, round_num, verdict, confidence, evidence_summary, reasoning, details):
+    verdict_log.append(
+        json.dumps(
+            {
+                "escrow_id": escrow_id,
+                "stage": stage,
+                "round": int(round_num),
+                "verdict": verdict,
+                "confidence": confidence,
+                "evidence_summary": evidence_summary,
+                "reasoning": reasoning,
+                "details": details,
+            }
+        )
+    )
 
 
 class ProofCourt(gl.Contract):
-    escrows: TreeMap[str, Escrow]
+    escrows: TreeMap[str, str]
     escrow_count: u256
-    verdict_log: DynArray[VerdictRecord]
+    verdict_log: DynArray[str]
 
     def __init__(self):
         pass
@@ -339,61 +326,59 @@ class ProofCourt(gl.Contract):
     @gl.public.write.payable
     def create_escrow(self, condition: str, beneficiary: Address, deadline: str) -> str:
         amount = gl.message.value
-        if amount <= 0:
+        if int(amount) <= 0:
             raise gl.vm.UserError("escrow must be funded with a value greater than zero")
         escrow_id = "escrow-" + str(int(self.escrow_count) + 1)
-        self.escrows[escrow_id] = Escrow(
-            condition=condition,
-            claim_text="",
-            claim_links="",
-            payer=gl.message.sender_address,
-            beneficiary=beneficiary,
-            amount=amount,
-            token="native",
-            deadline=deadline,
-            status="OPEN",
-            verdict="",
-            confidence=0.0,
-            evidence_summary="",
-            reasoning="",
-            partial_details="",
-            appeal_round=u256(0),
-            revised_checks="",
-        )
+        escrow = {
+            "escrow_id": escrow_id,
+            "condition": condition,
+            "claim_text": "",
+            "claim_links": "",
+            "payer": gl.message.sender_address.as_hex,
+            "beneficiary": beneficiary.as_hex,
+            "amount": str(int(amount)),
+            "token": "native",
+            "deadline": deadline,
+            "status": "OPEN",
+            "verdict": "",
+            "confidence": 0.0,
+            "evidence_summary": "",
+            "reasoning": "",
+            "partial_details": "",
+            "appeal_round": 0,
+            "revised_checks": "",
+        }
+        self.escrows[escrow_id] = json.dumps(escrow)
         self.escrow_count = u256(int(self.escrow_count) + 1)
         return escrow_id
 
     @gl.public.write
     def submit_claim(self, escrow_id: str, claim_text: str, claim_links: str):
-        if escrow_id not in self.escrows:
-            raise gl.vm.UserError("escrow not found")
-        escrow = self.escrows[escrow_id]
-        if gl.message.sender_address != escrow.beneficiary:
+        escrow = _load_escrow(self.escrows, escrow_id)
+        if gl.message.sender_address.as_hex != escrow["beneficiary"]:
             raise gl.vm.UserError("only the beneficiary can submit a claim")
-        if escrow.status != "OPEN":
+        if escrow["status"] != "OPEN":
             raise gl.vm.UserError("a claim was already submitted")
-        escrow.claim_text = claim_text
-        escrow.claim_links = claim_links
-        escrow.status = "CLAIMED"
+        escrow["claim_text"] = claim_text
+        escrow["claim_links"] = claim_links
+        escrow["status"] = "CLAIMED"
+        self.escrows[escrow_id] = json.dumps(escrow)
 
     @gl.public.write
     def resolve(self, escrow_id: str):
-        if escrow_id not in self.escrows:
-            raise gl.vm.UserError("escrow not found")
-        escrow = self.escrows[escrow_id]
-        if escrow.status not in ("CLAIMED", "APPEALED"):
+        escrow = _load_escrow(self.escrows, escrow_id)
+        if escrow["status"] not in ("CLAIMED", "APPEALED"):
             raise gl.vm.UserError("escrow is not awaiting resolution")
 
-        escrow_id_mem = escrow_id
-        condition_mem = str(escrow.condition)
-        claim_mem = str(escrow.claim_text)
-        links_mem = str(escrow.claim_links)
-        amount_mem = escrow.amount
-        token_mem = str(escrow.token)
-        payer_mem = str(escrow.payer)
-        beneficiary_mem = str(escrow.beneficiary)
-        deadline_mem = str(escrow.deadline)
-        appeal_round_mem = int(escrow.appeal_round)
+        condition_mem = str(escrow["condition"])
+        claim_mem = str(escrow["claim_text"])
+        links_mem = str(escrow["claim_links"])
+        amount_mem = int(escrow["amount"])
+        token_mem = str(escrow["token"])
+        payer_mem = str(escrow["payer"])
+        beneficiary_mem = str(escrow["beneficiary"])
+        deadline_mem = str(escrow["deadline"])
+        appeal_round_mem = int(escrow["appeal_round"])
         required_confidence = _required_confidence(amount_mem)
         if amount_mem > HIGH_VALUE_THRESHOLD:
             high_value_note = (
@@ -405,7 +390,7 @@ class ProofCourt(gl.Contract):
             high_value_note = ""
 
         result = _run_leader_arbitration(
-            escrow_id_mem,
+            escrow_id,
             condition_mem,
             claim_mem,
             links_mem,
@@ -440,45 +425,45 @@ class ProofCourt(gl.Contract):
             )
             partial_details = (downgrade_note + " " + partial_details).strip()
 
-        escrow.verdict = verdict
-        escrow.confidence = confidence
-        escrow.evidence_summary = evidence_summary
-        escrow.reasoning = reasoning
-        escrow.partial_details = partial_details
+        escrow["verdict"] = verdict
+        escrow["confidence"] = confidence
+        escrow["evidence_summary"] = evidence_summary
+        escrow["reasoning"] = reasoning
+        escrow["partial_details"] = partial_details
         if verdict == "RELEASE":
-            escrow.status = "RELEASED"
+            escrow["status"] = "RELEASED"
         elif verdict == "REFUND":
-            escrow.status = "REFUNDED"
+            escrow["status"] = "REFUNDED"
         else:
-            escrow.status = "PARTIAL"
-        if escrow.status == "RELEASED":
-            gl.eth.send(escrow.beneficiary, escrow.amount)
-        elif escrow.status == "REFUNDED":
-            gl.eth.send(escrow.payer, escrow.amount)
-        self.verdict_log.append(
-            VerdictRecord(
-                escrow_id=escrow_id,
-                stage="resolve",
-                round=u256(appeal_round_mem),
-                verdict=verdict,
-                confidence=confidence,
-                evidence_summary=evidence_summary,
-                reasoning=reasoning,
-                details=partial_details,
-            )
+            escrow["status"] = "PARTIAL"
+
+        if escrow["status"] == "RELEASED":
+            gl.eth.send(Address(escrow["beneficiary"]), u256(amount_mem))
+        elif escrow["status"] == "REFUNDED":
+            gl.eth.send(Address(escrow["payer"]), u256(amount_mem))
+
+        self.escrows[escrow_id] = json.dumps(escrow)
+        _log_verdict(
+            self.verdict_log,
+            escrow_id,
+            "resolve",
+            appeal_round_mem,
+            verdict,
+            confidence,
+            evidence_summary,
+            reasoning,
+            partial_details,
         )
 
     @gl.public.write
     def appeal(self, escrow_id: str):
-        if escrow_id not in self.escrows:
-            raise gl.vm.UserError("escrow not found")
-        escrow = self.escrows[escrow_id]
-        if escrow.status != "PARTIAL":
+        escrow = _load_escrow(self.escrows, escrow_id)
+        if escrow["status"] != "PARTIAL":
             raise gl.vm.UserError("appeal is only available after a PARTIAL verdict")
 
-        condition_mem = str(escrow.condition)
-        details_mem = str(escrow.partial_details)
-        evidence_mem = str(escrow.evidence_summary)
+        condition_mem = str(escrow["condition"])
+        details_mem = str(escrow["partial_details"])
+        evidence_mem = str(escrow["evidence_summary"])
 
         def input_fn() -> str:
             return _fill(
@@ -500,66 +485,34 @@ class ProofCourt(gl.Contract):
         if not revised:
             raise gl.vm.UserError("appeal output is missing revised_condition")
 
-        escrow.condition = revised
+        escrow["condition"] = revised
         checks = data.get("checks")
         if isinstance(checks, list):
-            escrow.revised_checks = json.dumps(checks)
-        escrow.appeal_round = u256(int(escrow.appeal_round) + 1)
-        escrow.status = "APPEALED"
-        self.verdict_log.append(
-            VerdictRecord(
-                escrow_id=escrow_id,
-                stage="appeal",
-                round=escrow.appeal_round,
-                verdict="",
-                confidence=0.0,
-                evidence_summary=evidence_mem,
-                reasoning="condition restated for definitive resolution",
-                details=json.dumps(data, sort_keys=True)[:MAX_TEXT_CHARS],
-            )
+            escrow["revised_checks"] = json.dumps(checks)
+        escrow["appeal_round"] = int(escrow["appeal_round"]) + 1
+        escrow["status"] = "APPEALED"
+        self.escrows[escrow_id] = json.dumps(escrow)
+        _log_verdict(
+            self.verdict_log,
+            escrow_id,
+            "appeal",
+            escrow["appeal_round"],
+            "",
+            0.0,
+            evidence_mem,
+            "condition restated for definitive resolution",
+            json.dumps(data, sort_keys=True)[:MAX_TEXT_CHARS],
         )
 
     @gl.public.view
     def get_escrow(self, escrow_id: str) -> str:
         if escrow_id not in self.escrows:
             raise gl.vm.UserError("escrow not found")
-        escrow = self.escrows[escrow_id]
-        return json.dumps(
-            {
-                "escrow_id": escrow_id,
-                "condition": escrow.condition,
-                "claim": escrow.claim_text,
-                "claim_links": escrow.claim_links,
-                "payer": str(escrow.payer),
-                "beneficiary": str(escrow.beneficiary),
-                "amount": str(escrow.amount),
-                "token": escrow.token,
-                "deadline": escrow.deadline,
-                "status": escrow.status,
-                "verdict": escrow.verdict,
-                "confidence": escrow.confidence,
-                "evidence_summary": escrow.evidence_summary,
-                "reasoning": escrow.reasoning,
-                "partial_details": escrow.partial_details,
-                "appeal_round": int(escrow.appeal_round),
-                "revised_checks": escrow.revised_checks,
-            }
-        )
+        return self.escrows[escrow_id]
 
     @gl.public.view
     def get_verdict_log(self) -> str:
         records = []
-        for record in self.verdict_log:
-            records.append(
-                {
-                    "escrow_id": record.escrow_id,
-                    "stage": record.stage,
-                    "round": int(record.round),
-                    "verdict": record.verdict,
-                    "confidence": record.confidence,
-                    "evidence_summary": record.evidence_summary,
-                    "reasoning": record.reasoning,
-                    "details": record.details,
-                }
-            )
+        for record_json in self.verdict_log:
+            records.append(json.loads(record_json))
         return json.dumps(records)
