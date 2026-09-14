@@ -1,3 +1,5 @@
+# v0.1.0
+# { "Depends": "py-genlayer:latest" }
 from dataclasses import dataclass
 
 import json
@@ -336,8 +338,11 @@ class ProofCourt(gl.Contract):
         self.escrow_count = u32(0)
         self.verdict_log = DynArray[VerdictRecord]()
 
-    @gl.public.write
-    def create_escrow(self, condition: str, beneficiary: Address, amount: u256, token: str, deadline: str) -> str:
+    @gl.public.write.payable
+    def create_escrow(self, condition: str, beneficiary: Address, deadline: str) -> str:
+        amount = gl.message.value
+        if amount <= 0:
+            raise gl.vm.UserError("escrow must be funded with a value greater than zero")
         escrow_id = "escrow-" + str(int(self.escrow_count) + 1)
         self.escrows[escrow_id] = Escrow(
             condition=condition,
@@ -346,7 +351,7 @@ class ProofCourt(gl.Contract):
             payer=gl.message.sender_address,
             beneficiary=beneficiary,
             amount=amount,
-            token=token,
+            token="native",
             deadline=deadline,
             status="OPEN",
             verdict="",
@@ -448,6 +453,10 @@ class ProofCourt(gl.Contract):
             escrow.status = "REFUNDED"
         else:
             escrow.status = "PARTIAL"
+        if escrow.status == "RELEASED":
+            gl.eth.send(escrow.beneficiary, escrow.amount)
+        elif escrow.status == "REFUNDED":
+            gl.eth.send(escrow.payer, escrow.amount)
         self.verdict_log.append(
             VerdictRecord(
                 escrow_id=escrow_id,
