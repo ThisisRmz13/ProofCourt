@@ -336,10 +336,11 @@ class ProofCourt(gl.Contract):
     def __init__(self):
         pass
 
-    @gl.public.write
-    def create_escrow(self, condition: str, beneficiary: str, deadline: str, amount: str) -> str:
-        if int(amount) <= 0:
-            raise gl.vm.UserError("amount must be greater than zero")
+    @gl.public.write.payable
+    def create_escrow(self, condition: str, beneficiary: str, deadline: str) -> str:
+        amount = int(gl.message.value)
+        if amount <= 0:
+            raise gl.vm.UserError("escrow must be funded with a value greater than zero")
         escrow_id = "escrow-" + str(int(self.escrow_count) + 1)
         escrow = {
             "escrow_id": escrow_id,
@@ -348,7 +349,7 @@ class ProofCourt(gl.Contract):
             "claim_links": "",
             "payer": gl.message.sender_address.as_hex,
             "beneficiary": beneficiary,
-            "amount": str(int(amount)),
+            "amount": str(amount),
             "token": "native",
             "deadline": deadline,
             "status": "OPEN",

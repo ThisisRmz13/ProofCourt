@@ -58,13 +58,15 @@ def _setup_leader_verdict(direct_vm, verdict, confidence):
 
 def _create_escrow(direct_vm, direct_deploy, direct_alice, direct_bob, amount="100"):
     contract = direct_deploy(CONTRACT)
+    direct_vm.deal(direct_alice, 10**9)
     direct_vm.sender = direct_alice
+    direct_vm.value = int(amount)
     escrow_id = contract.create_escrow(
         "Bitcoin block 800000 exists and was mined before 2025",
         _addr(direct_bob),
         "2026-10-01",
-        amount,
     )
+    direct_vm.value = 0
     return contract, escrow_id
 
 
@@ -76,6 +78,18 @@ def test_create_escrow_opens_state(direct_vm, direct_deploy, direct_alice, direc
     assert state["beneficiary"] == _addr(direct_bob)
     assert state["amount"] == "100"
     assert json.loads(contract.get_verdict_log()) == []
+
+
+def test_create_escrow_requires_funding(direct_vm, direct_deploy, direct_alice, direct_bob):
+    contract = direct_deploy(CONTRACT)
+    direct_vm.deal(direct_alice, 10**9)
+    direct_vm.sender = direct_alice
+    with direct_vm.expect_revert("escrow must be funded with a value greater than zero"):
+        contract.create_escrow(
+            "Bitcoin block 800000 exists and was mined before 2025",
+            _addr(direct_bob),
+            "2026-10-01",
+        )
 
 
 def test_only_beneficiary_can_claim(direct_vm, direct_deploy, direct_alice, direct_bob, direct_charlie):

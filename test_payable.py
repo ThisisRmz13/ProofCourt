@@ -5,6 +5,9 @@ from genlayer import *
 class PayableTest(gl.Contract):
     total: u256
 
+    def __init__(self):
+        pass
+
     @gl.public.write.payable
     def deposit(self):
         value = gl.message.value

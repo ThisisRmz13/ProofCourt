@@ -1,6 +1,6 @@
 # ProofCourt — Resume Notes (continue here tomorrow)
 
-Last updated: 2026-09-14 (late night session)
+Last updated: 2026-09-14 (~9:00 PM session)
 Repo: https://github.com/ThisisRmz13/ProofCourt (branch `main`)
 Project: AI-jury escrow arbitration on GenLayer (Leader / Compare / Appeal prompts).
 
@@ -8,13 +8,29 @@ Project: AI-jury escrow arbitration on GenLayer (Leader / Compare / Appeal promp
 
 ## 1. Where we are RIGHT NOW
 
+### ✅ MILESTONE (2026-09-14 ~8:30 PM): FULL E2E SUCCESS ON STUDIO
+Contract `contracts.py` (same code as repo `contract.py`) deployed at `0xD8Ec0F2f90Ad38a63333AF4123AE52107941Ae9E`.
+Full flow verified on-chain in Normal (Full Consensus) mode:
+`create_escrow` → `submit_claim` → `resolve` → **RELEASED, verdict RELEASE, confidence 0.96**,
+leader fetched real evidence (Blockstream API, block 800000, ts 2024), validators agreed (3/4, 1 disagree → quorum OK),
+`emit_transfer` settlement succeeded after funding the contract.
+**Funding lesson: the contract needs balance** — sent 2 GEN from wallet to the contract address (tx `0x3cb45...42bb6`); escrow amount is raw units (100), so dust suffices. First resolve attempt failed with `SystemError: 7: inbalance` (zero balance) — this is the §5.4 payable gap, workaround = fund the contract manually.
+Also observed once: pre-funding resolve reached consensus but rolled back at emit_transfer (verdict lost) — expected, rollback is atomic.
+Studio flakiness (§5.1) confirmed in the wild: some validators Disagree with "leader verdict was not valid JSON" — quorum still reached, retry not needed when ≥ quorum Agree.
+
 ### Studio (hosted, network = "GenLayer" localnet — NOT Bradbury)
-- `contract.py` is DEPLOYED at `0x86...bbC6` ✅ (schema loads, Run & Debug panel works)
-- `escrow-1` created (`create_escrow` FINALIZED) — condition: "Bitcoin block 800000 exists on the Bitcoin blockchain and was mined before 2025", payer = beneficiary = `0xd32cdB39d204b3945496Fed07c3096067F14F613`, amount `"100"`, status `OPEN`
-- `submit_claim` FINALIZED ✅
-- `resolve` #1 (tx `0xb27f...`) FINALIZED — **outcome unknown, check `get_escrow` first thing**
-- `resolve` #2 (tx `0xdf98...`) ended **UNDETERMINED** (validators could not reach consensus — see §5)
+- OLD instance `0x86...bbC6` (pre-emit_transfer code) is obsolete — use `0xD8Ec0F2f90Ad38a63333AF4123AE52107941Ae9E`
+- `escrow-1`: **RELEASED / RELEASE / 0.96** ✅ + `get_verdict_log` verified (full audit record on-chain) ✅
+- `escrow-2` ("The Bitcoin network is healthy"): resolve → LLM gave a DECISIVE verdict (not PARTIAL — LLMs find ways to verify vague conditions). Then `appeal` → correctly rejected ("only after PARTIAL") and second `resolve` → correctly rejected ("not awaiting resolution"). **Guards work; no bug.** Lesson: PARTIAL only comes with genuinely incomplete evidence.
+- To demo PARTIAL→appeal on Studio, use escrow-3 condition: `Bitcoin block 800000 exists on the blockchain, AND the beneficiary received a 0.1 BTC payment from Satoshi's genesis wallet (no transaction hash is provided)` — half provable, half not → expect PARTIAL (partial_details asks for tx hash) → `appeal` → re-`resolve` → expect REFUND.
 - `test_min.py` deploys fine (smoke test for the environment)
+
+### Hackathon submission readiness (assessed 2026-09-14)
+1. 🔴 **Fund-locking (§5.4)** — create_escrow locks NOTHING; anyone can create arbitrary-amount escrow and drain contract balance. MUST restore payable before submission. NEXT ACTION: run `test_payable.py` locally, figure out why Studio schema parser rejected the decorator.
+2. 🟡 Appeal path on Studio not yet demonstrated (local test green) — use the escrow-3 condition above.
+3. 🟡 README.md stale (describes payable + old storage).
+4. 🟡 Two-account demo video (payer ≠ beneficiary, bogus claim → REFUND).
+5. 🟢 Frontend optional (Next.js boilerplate + genlayer-js) — contract + Studio demo usually enough.
 
 ### Local test suite (NEW — this is our debugging engine now)
 - venv: `.venv` (Python **3.12.10** — genlayer-test needs >= 3.12; 3.11 fails on `collections.abc.Buffer`)
@@ -58,14 +74,14 @@ All fixed and committed:
 
 ---
 
-## 4. What to do in Studio after local tests are green
+## 4. What to do in Studio (current playbook)
 
-1. Select the deployed instance `0x86...bbC6` (or **Deploy new instance** from the updated `contract.py`)
-2. `get_escrow(escrow-1)` → read the outcome of the earlier `resolve` (status: CLAIMED? PARTIAL? RELEASED/REFUNDED? check `verdict`, `confidence`, `evidence_summary`, `partial_details`)
-3. If still `CLAIMED`: try `resolve` again — hosted Studio sometimes ends `UNDETERMINED` due to validator flakiness, retry may pass
-4. If `PARTIAL`: run `appeal` → then `resolve` again (appeal rewrites condition into atomic checks)
-5. If `RELEASED`/`REFUNDED`: check `get_verdict_log()` and — if it got that far — whether the GEN balance moved (see §5 #3)
-6. Use **Simulation Mode** toggle to get fast, raw error messages without consensus
+1. Instance: `0xD8Ec0F2f90Ad38a63333AF4123AE52107941Ae9E` (funded with 2 GEN — enough for many dust-amount escrows)
+2. Fresh escrow needs: `create_escrow` → `submit_claim` → `resolve` (Normal/Full Consensus; wait FINALIZED; LLMs may take 1–2 min)
+3. Read outcomes: `get_escrow(escrow-N)` (status/verdict/confidence/evidence/partial_details), `get_verdict_log()`
+4. **Simulation Mode** toggle = fast raw errors without consensus (state changes usually NOT persisted — dry-run)
+5. Finalized + ERROR = deterministic rollback (guards or settlement failure); FINALIZED + SUCCESS = applied
+6. If a tx hits `SystemError: 7: inbalance` → contract is out of funds, send more GEN from wallet
 
 When pasting from GitHub: always Raw → Ctrl+A → Ctrl+C; make sure file is fully cleared first (a duplicated paste caused one false alarm).
 
@@ -73,11 +89,11 @@ When pasting from GitHub: always Raw → Ctrl+A → Ctrl+C; make sure file is fu
 
 ## 5. Known open issues (priority order)
 
-1. **`resolve` UNDETERMINED on hosted Studio** — leader + validators each run their own LLM (GPT/Gemini/Qwen/DeepSeek...) on the Leader+Compare prompts; disagreement is expected. Mitigations to try: make compare tolerance more lenient in `validator_fn` (currently requires exact same verdict), lower prompt ambiguity, or accept retries.
-2. **Hosted-Studio validator flakiness** — during consensus rounds, many validators die with `SystemError: 6: forbidden` in `root_slot.lock_default()` / "absent_runner_comment" on appeals. This is THEIR infrastructure, not our code. Local direct tests + GLSim are the reliable path; consider `pip install genlayer-test[sim]` and run `glsim --port 4000 --validators 5` locally for consensus-like testing without Studio.
-3. ~~`gl.eth.send(Address, u256)` unverified~~ **RESOLVED**: official API is `gl.get_contract_at(addr).emit_transfer(value=u256(...))`. Direct mode no-ops it; still needs on-chain verification (contract must hold balance — see #4).
-4. **Payable / real fund lock removed** (Studio schema rejected the decorator). Re-test `test_payable.py` in isolation; if payable works, switch `create_escrow` back to `@gl.public.write.payable` + `gl.message.value` and drop the `amount: str` param.
-5. **README.md is stale** — still describes payable create_escrow and old storage; update after §5.3/§5.4 decisions.
+1. ~~🔴 Fund-locking~~ **FIXED 2026-09-14 night**: `create_escrow` is `@gl.public.write.payable` again, amount = `gl.message.value` (no amount param). Root cause of the old Studio schema rejection was almost certainly the `beneficiary: Address` param (Studio sends ints), NOT payable — old payable version (d31fe7f~1) also had a stray `# v0.1.0` second line. Local `get_schema` accepts payable=True (verified) + `test_payable.py` needed `__init__` (added). Direct tests: 11/11 green incl. new `test_create_escrow_requires_funding`. STILL NEEDS: deploy fresh Studio instance and confirm the payable form (Value field) works on-chain.
+2. **`resolve` UNDETERMINED / validator disagreement on hosted Studio** — different LLM policies occasionally produce "leader verdict was not valid JSON" on their side; quorum usually still reached. Mitigations if needed: lenient compare tolerance in `validator_fn`, clearer prompt format instructions, retries.
+3. ~~`gl.eth.send(Address, u256)` unverified~~ **RESOLVED**: official API is `gl.get_contract_at(addr).emit_transfer(value=u256(...))` — verified ON-CHAIN (settlement succeeded 2026-09-14).
+4. **README.md is stale** — still describes payable create_escrow and old storage; update after fund-locking decision (§5.1).
+5. **glsim for consensus-like local testing** (optional): `pip install genlayer-test[sim]` then `glsim --port 4000 --validators 5`.
 
 ---
 
@@ -91,29 +107,30 @@ When pasting from GitHub: always Raw → Ctrl+A → Ctrl+C; make sure file is fu
 
 ---
 
-## 7. Quick-start tomorrow (copy-paste block)
+## 7. Quick-start next session (copy-paste block)
 
 ```powershell
 cd C:\Users\Asus\Desktop\git\ProofCourt
-git status                          # see the uncommitted contract.py fix + tests
-.venv\Scripts\pytest tests/direct -v          # goal: 9 passed
-# if needed:
-.venv\Scripts\pytest tests/direct/test_debug.py -v -s   # shows vm traces
-# when green:
-git add -A && git commit -m "direct tests green + lazy-resolve + calldata-safe confidence" && git push
+git status
+.venv\Scripts\pytest tests/direct -v          # expect: 10 passed
+# THEN the main task — fund-locking (§5.1):
+#  1. inspect test_payable.py, run it locally against the direct VM
+#  2. try @gl.public.write.payable on a minimal contract for the Studio schema parser
+#  3. if OK: restore payable create_escrow, update tests, deploy fresh Studio instance
 ```
-Then Studio: `get_escrow(escrow-1)` → continue flow (§4).
+
+Studio playbook: §4. Open issues: §5.
 
 ---
 
 ## File map
 
 ```
-contract.py                    # the ProofCourt contract (JSON-string storage)
-test_min.py                    # env smoke test
-test_payable.py                # isolate @gl.public.write.payable support
-tests/direct/conftest.py       # Windows unlink monkeypatch (required!)
-tests/direct/test_proofcourt.py# 9 scenario tests with LLM mocks
-tests/direct/test_debug.py     # trace-printer (temporary)
-README.md / LICENSE / .gitignore
+contract.py                     # the ProofCourt contract (JSON-string storage)
+test_min.py                     # env smoke test
+test_payable.py                 # isolate @gl.public.write.payable support (NEXT TASK)
+tests/direct/conftest.py        # Windows unlink patch + ExecPromptTemplate/Sandbox direct-VM patches (required!)
+tests/direct/test_proofcourt.py # 10 scenario tests with LLM mocks (9 core + disagreement)
+tests/direct/test_debug.py      # trace-printer (keep, useful)
+continue.md / README.md / LICENSE / .gitignore
 ```
