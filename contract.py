@@ -161,6 +161,8 @@ def _fill(template: str, values: dict) -> str:
 
 
 def _extract_json(text):
+    if isinstance(text, dict):
+        return text
     if not isinstance(text, str):
         return None
     cleaned = text.strip()
@@ -189,6 +191,16 @@ def _to_float(value) -> float:
         return 0.0
 
 
+def _resolve(value):
+    getter = getattr(value, "get", None)
+    if callable(getter):
+        try:
+            return getter()
+        except TypeError:
+            return value
+    return value
+
+
 def _required_confidence(amount) -> float:
     if amount > HIGH_VALUE_THRESHOLD:
         return HIGH_VALUE_MIN_CONFIDENCE
@@ -202,7 +214,7 @@ def _fetch_links(links: str) -> str:
         if not link:
             continue
         try:
-            body = str(gl.nondet.web.render(link, mode="text"))
+            body = str(_resolve(gl.nondet.web.render(link, mode="text")))
             parts.append(link + "\n" + body[:MAX_LINK_BODY_CHARS])
         except Exception:
             parts.append(link + "\n[FETCH FAILED]")
@@ -240,10 +252,11 @@ def _run_leader_arbitration(
                 "high_value_note": high_value_note,
             },
         )
-        response = gl.nondet.exec_prompt(prompt)
+        response = _resolve(gl.nondet.exec_prompt(prompt))
         data = _extract_json(response)
         if data is None:
             raise gl.vm.UserError("leader verdict was not valid JSON")
+        data["confidence"] = str(_to_float(data.get("confidence")))
         return data
 
     def validator_fn(leader_result) -> bool:
@@ -285,7 +298,7 @@ def _run_compare_validation(escrow_id: str, condition_text: str, claim_text: str
             "tx_refs": "(every transaction hash, address, token, or API endpoint referenced in the condition)",
         },
     )
-    response = gl.nondet.exec_prompt(prompt)
+    response = _resolve(gl.nondet.exec_prompt(prompt))
     data = _extract_json(response)
     if data is None:
         raise gl.vm.UserError("validator verdict was not valid JSON")
@@ -437,9 +450,13 @@ class ProofCourt(gl.Contract):
             escrow["status"] = "PARTIAL"
 
         if escrow["status"] == "RELEASED":
-            gl.eth.send(Address(escrow["beneficiary"]), u256(amount_mem))
+            gl.get_contract_at(Address(escrow["beneficiary"])).emit_transfer(
+                value=u256(amount_mem)
+            )
         elif escrow["status"] == "REFUNDED":
-            gl.eth.send(Address(escrow["payer"]), u256(amount_mem))
+            gl.get_contract_at(Address(escrow["payer"])).emit_transfer(
+                value=u256(amount_mem)
+            )
 
         self.escrows[escrow_id] = json.dumps(escrow)
         _log_verdict(
@@ -474,8 +491,10 @@ class ProofCourt(gl.Contract):
                 },
             )
 
-        raw = gl.eq_principle.prompt_non_comparative(
-            input_fn, task=APPEAL_TASK, criteria=APPEAL_CRITERIA
+        raw = _resolve(
+            gl.eq_principle.prompt_non_comparative(
+                input_fn, task=APPEAL_TASK, criteria=APPEAL_CRITERIA
+            )
         )
         data = _extract_json(raw)
         if data is None:
