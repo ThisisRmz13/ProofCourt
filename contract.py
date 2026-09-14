@@ -62,11 +62,18 @@ Respond with ONLY this JSON object, no markdown fences, no extra text:
 }
 
 Rules for the verdict:
-- RELEASE: every element of the condition is verifiably satisfied.
-- REFUND: the condition is verifiably not satisfied, or the evidence
-  contradicts the claim.
-- PARTIAL: evidence exists but is incomplete, ambiguous, or satisfies the
-  condition only in part. Never guess — when in genuine doubt, choose PARTIAL.
+- RELEASE: every element of the condition is verifiably satisfied with
+  evidence you personally checked.
+- PARTIAL: ANY element of the condition cannot be verified from the data
+  available to you (no source found, source does not cover it, or evidence
+  is incomplete). This is the correct outcome for unverifiable claims.
+  In partial_details state exactly what evidence would close the gap.
+- REFUND: use ONLY when evidence you personally checked affirmatively
+  CONTRADICTS the condition (wrong amount, wrong recipient, event that
+  verifiably did not happen). Never choose REFUND merely because you
+  could not find supporting evidence — that is PARTIAL, not REFUND.
+
+"Cannot verify" is PARTIAL, not REFUND. Never guess.
 Confidence guidance: 1.0 = direct on-chain proof of every claim element;
 0.7-0.9 = strong indirect evidence; below 0.7 = you should likely be
 choosing PARTIAL.
@@ -93,8 +100,9 @@ Beneficiary's claim: {claim_text}
 2. Evaluate whether the leader's verdict is consistent with the verifiable
    facts AND with the verdict rules:
    - RELEASE requires full satisfaction of the condition
-   - REFUND requires verifiable non-satisfaction or contradiction
-   - PARTIAL is appropriate when evidence is incomplete or ambiguous
+   - PARTIAL is required when ANY element of the condition could not be
+     verified from available data
+   - REFUND requires affirmative contradiction, not merely missing evidence
 3. Pay special attention to: did the leader trust the beneficiary's claim
    without independent evidence? Did the leader miss a mismatch in amount,
    recipient, token, direction, or time window?
