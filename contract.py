@@ -1,5 +1,5 @@
 # { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
-# v0.1.0
+
 import json
 
 from genlayer import *
@@ -323,11 +323,10 @@ class ProofCourt(gl.Contract):
     def __init__(self):
         pass
 
-    @gl.public.write.payable
-    def create_escrow(self, condition: str, beneficiary: Address, deadline: str) -> str:
-        amount = gl.message.value
+    @gl.public.write
+    def create_escrow(self, condition: str, beneficiary: Address, deadline: str, amount: str) -> str:
         if int(amount) <= 0:
-            raise gl.vm.UserError("escrow must be funded with a value greater than zero")
+            raise gl.vm.UserError("amount must be greater than zero")
         escrow_id = "escrow-" + str(int(self.escrow_count) + 1)
         escrow = {
             "escrow_id": escrow_id,
