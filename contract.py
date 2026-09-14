@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 
 import json
-import re
 
 from genlayer import *
 
@@ -163,22 +162,23 @@ def _fill(template: str, values: dict) -> str:
     return out
 
 
-_JSON_RE = re.compile(r"\{.*\}", re.DOTALL)
-_FENCE_START_RE = re.compile(r"^```(?:json)?\s*")
-_FENCE_END_RE = re.compile(r"\s*```\s*$")
-
-
-def _extract_json(text) -> dict | None:
+def _extract_json(text):
     if not isinstance(text, str):
         return None
     cleaned = text.strip()
-    cleaned = _FENCE_START_RE.sub("", cleaned)
-    cleaned = _FENCE_END_RE.sub("", cleaned)
-    match = _JSON_RE.search(cleaned)
-    if match is None:
+    while cleaned.startswith("`"):
+        cleaned = cleaned[1:]
+    while cleaned.endswith("`"):
+        cleaned = cleaned[:-1]
+    if cleaned.startswith("json"):
+        cleaned = cleaned[4:]
+    cleaned = cleaned.strip()
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start == -1 or end == -1 or end <= start:
         return None
     try:
-        data = json.loads(match.group(0))
+        data = json.loads(cleaned[start:end + 1])
     except Exception:
         return None
     return data if isinstance(data, dict) else None
@@ -311,7 +311,7 @@ class Escrow:
     evidence_summary: str
     reasoning: str
     partial_details: str
-    appeal_round: u32
+    appeal_round: u256
     revised_checks: str
 
 
@@ -320,7 +320,7 @@ class Escrow:
 class VerdictRecord:
     escrow_id: str
     stage: str
-    round: u32
+    round: u256
     verdict: str
     confidence: float
     evidence_summary: str
@@ -330,13 +330,13 @@ class VerdictRecord:
 
 class ProofCourt(gl.Contract):
     escrows: TreeMap[str, Escrow]
-    escrow_count: u32
+    escrow_count: u256
     verdict_log: DynArray[VerdictRecord]
 
     def __init__(self):
-        self.escrows = TreeMap[str, Escrow]()
-        self.escrow_count = u32(0)
-        self.verdict_log = DynArray[VerdictRecord]()
+        self.escrows = TreeMap()
+        self.escrow_count = u256(0)
+        self.verdict_log = DynArray()
 
     @gl.public.write.payable
     def create_escrow(self, condition: str, beneficiary: Address, deadline: str) -> str:
@@ -359,10 +359,10 @@ class ProofCourt(gl.Contract):
             evidence_summary="",
             reasoning="",
             partial_details="",
-            appeal_round=u32(0),
+            appeal_round=u256(0),
             revised_checks="",
         )
-        self.escrow_count = u32(int(self.escrow_count) + 1)
+        self.escrow_count = u256(int(self.escrow_count) + 1)
         return escrow_id
 
     @gl.public.write
@@ -461,7 +461,7 @@ class ProofCourt(gl.Contract):
             VerdictRecord(
                 escrow_id=escrow_id,
                 stage="resolve",
-                round=u32(appeal_round_mem),
+                round=u256(appeal_round_mem),
                 verdict=verdict,
                 confidence=confidence,
                 evidence_summary=evidence_summary,
@@ -506,7 +506,7 @@ class ProofCourt(gl.Contract):
         checks = data.get("checks")
         if isinstance(checks, list):
             escrow.revised_checks = json.dumps(checks)
-        escrow.appeal_round = u32(int(escrow.appeal_round) + 1)
+        escrow.appeal_round = u256(int(escrow.appeal_round) + 1)
         escrow.status = "APPEALED"
         self.verdict_log.append(
             VerdictRecord(
