@@ -1,36 +1,42 @@
 # ProofCourt — Resume Notes (continue here tomorrow)
 
-Last updated: 2026-09-14 (~9:00 PM session)
-Repo: https://github.com/ThisisRmz13/ProofCourt (branch `main`)
+Last updated: 2026-09-14 (~10:30 PM session — END OF DAY, resume from §7)
+Repo: https://github.com/ThisisRmz13/ProofCourt (branch `main`, all pushed)
 Project: AI-jury escrow arbitration on GenLayer (Leader / Compare / Appeal prompts).
 
 ---
 
+## 0. ✅ END-OF-DAY STATE (read this first)
+
+1. **Fund-locking LIVE on-chain**: `create_escrow` is `@gl.public.write.payable`, amount = `gl.message.value` (Value field in Studio form). Verified: deploy + escrow-1 (Value=100 GEN) → RELEASED. The old "payable breaks schema" was a MISDIAGNOSIS — real culprits were `beneficiary: Address` param (Studio sends ints) and a stray `# v0.1.0` second line.
+2. **Prompt fairness fix pushed (NOT yet verified on-chain)**: unverifiable element = PARTIAL (appealable), REFUND only for affirmative contradiction. Old prompts let LLMs answer "cannot verify" with REFUND (seen live on escrow-2: reasoning literally said "cannot be verified" → still REFUND).
+3. **Appeal demo on-chain still pending** — tomorrow's first task (§7): Upgrade code → new escrow with the genesis-wallet condition → expect PARTIAL → appeal → REFUND.
+4. Local tests: **11/11 green** (`tests/direct`, direct mode).
+
 ## 1. Where we are RIGHT NOW
 
-### ✅ MILESTONE (2026-09-14 ~8:30 PM): FULL E2E SUCCESS ON STUDIO
-Contract `contracts.py` (same code as repo `contract.py`) deployed at `0xD8Ec0F2f90Ad38a63333AF4123AE52107941Ae9E`.
-Full flow verified on-chain in Normal (Full Consensus) mode:
-`create_escrow` → `submit_claim` → `resolve` → **RELEASED, verdict RELEASE, confidence 0.96**,
-leader fetched real evidence (Blockstream API, block 800000, ts 2024), validators agreed (3/4, 1 disagree → quorum OK),
-`emit_transfer` settlement succeeded after funding the contract.
-**Funding lesson: the contract needs balance** — sent 2 GEN from wallet to the contract address (tx `0x3cb45...42bb6`); escrow amount is raw units (100), so dust suffices. First resolve attempt failed with `SystemError: 7: inbalance` (zero balance) — this is the §5.4 payable gap, workaround = fund the contract manually.
-Also observed once: pre-funding resolve reached consensus but rolled back at emit_transfer (verdict lost) — expected, rollback is atomic.
-Studio flakiness (§5.1) confirmed in the wild: some validators Disagree with "leader verdict was not valid JSON" — quorum still reached, retry not needed when ≥ quorum Agree.
+### ✅ MILESTONE (2026-09-14): FULL E2E ON STUDIO, TWICE
+- Instance `0xe1...80ED` (full address in Studio panel) — **payable contract deployed successfully** (deploy tx `0x1f2d` SUCCESS, validators agreed). UI marks `create_escrow payable` with a Value field.
+- escrow-1: Value `100` → stored as `100000000000000000000` wei (Studio converts GEN→wei) → `RELEASED / RELEASE / confidence 1.0`. Fund-locking works end-to-end. NO manual contract funding needed anymore (payer locks per-escrow).
+- Earlier instance `0xD8Ec0F2f90Ad38a63333AF4123AE52107941Ae9E` (pre-payable code, manually funded with 2 GEN) — also fully verified (RELEASE 0.96 + verdict_log audit). Both obsolete now except as reference.
+- `escrow-2` on 0xe1 instance (genesis-wallet condition): resolve → REFUND 0.85 under OLD prompt rules → appeal correctly rejected (guard). Retest with new rules (§0.3).
+- Observations: LLM verdict variance is real (block timestamp hallucinated differently across runs: 2023-09-09 / 2024-05-23 / 2024-09-14) — good talking point for multi-validator design. Studio UI quirk: after deploy SUCCESS the panel may say "Not deployed yet" until F5 refresh.
+- LLM note: validators are policy-routed (sonnet/gemini/mistral/gpt-oss/gpt-5-4/grok/gemma/claude...); 1-2 Disagrees per round are normal, quorum always reached.
 
 ### Studio (hosted, network = "GenLayer" localnet — NOT Bradbury)
-- OLD instance `0x86...bbC6` (pre-emit_transfer code) is obsolete — use `0xD8Ec0F2f90Ad38a63333AF4123AE52107941Ae9E`
-- `escrow-1`: **RELEASED / RELEASE / 0.96** ✅ + `get_verdict_log` verified (full audit record on-chain) ✅
-- `escrow-2` ("The Bitcoin network is healthy"): resolve → LLM gave a DECISIVE verdict (not PARTIAL — LLMs find ways to verify vague conditions). Then `appeal` → correctly rejected ("only after PARTIAL") and second `resolve` → correctly rejected ("not awaiting resolution"). **Guards work; no bug.** Lesson: PARTIAL only comes with genuinely incomplete evidence.
-- To demo PARTIAL→appeal on Studio, use escrow-3 condition: `Bitcoin block 800000 exists on the blockchain, AND the beneficiary received a 0.1 BTC payment from Satoshi's genesis wallet (no transaction hash is provided)` — half provable, half not → expect PARTIAL (partial_details asks for tx hash) → `appeal` → re-`resolve` → expect REFUND.
+- ACTIVE instance: `0xe1...80ED` (payable code). Old ones obsolete.
+- `escrow-1`: RELEASED/RELEASE/1.0 ✅ (fund-locking verified)
+- `escrow-2`: REFUNDED under old rules (see §0)
+- **Pending on-chain demo**: PARTIAL → `appeal` → REFUND with new prompt rules (§7)
+- Suggested condition for the appeal demo: `Bitcoin block 800000 exists on the blockchain, AND the beneficiary received a 0.1 BTC payment from Satoshi's genesis wallet (no transaction hash is provided)` — with NEW rules this must be PARTIAL (genesis wallet payment = cannot verify, not contradiction)
 - `test_min.py` deploys fine (smoke test for the environment)
 
-### Hackathon submission readiness (assessed 2026-09-14)
-1. 🔴 **Fund-locking (§5.4)** — create_escrow locks NOTHING; anyone can create arbitrary-amount escrow and drain contract balance. MUST restore payable before submission. NEXT ACTION: run `test_payable.py` locally, figure out why Studio schema parser rejected the decorator.
-2. 🟡 Appeal path on Studio not yet demonstrated (local test green) — use the escrow-3 condition above.
-3. 🟡 README.md stale (describes payable + old storage).
-4. 🟡 Two-account demo video (payer ≠ beneficiary, bogus claim → REFUND).
-5. 🟢 Frontend optional (Next.js boilerplate + genlayer-js) — contract + Studio demo usually enough.
+### Hackathon submission readiness (updated end of day)
+1. ✅ Fund-locking — DONE & verified on-chain
+2. 🟡 Appeal path on Studio — new prompt rules pushed, needs on-chain verification (first task tomorrow)
+3. 🟡 README.md — still stale (old payable narrative, old test instructions); update with current flow + local test setup
+4. 🟡 Two-account demo video (payer ≠ beneficiary, bogus claim → REFUND, appeal flow)
+5. 🟢 Frontend optional (Next.js boilerplate + genlayer-js)
 
 ### Local test suite (NEW — this is our debugging engine now)
 - venv: `.venv` (Python **3.12.10** — genlayer-test needs >= 3.12; 3.11 fails on `collections.abc.Buffer`)
@@ -89,10 +95,10 @@ When pasting from GitHub: always Raw → Ctrl+A → Ctrl+C; make sure file is fu
 
 ## 5. Known open issues (priority order)
 
-1. ~~🔴 Fund-locking~~ **FIXED 2026-09-14 night**: `create_escrow` is `@gl.public.write.payable` again, amount = `gl.message.value` (no amount param). Root cause of the old Studio schema rejection was almost certainly the `beneficiary: Address` param (Studio sends ints), NOT payable — old payable version (d31fe7f~1) also had a stray `# v0.1.0` second line. Local `get_schema` accepts payable=True (verified) + `test_payable.py` needed `__init__` (added). Direct tests: 11/11 green incl. new `test_create_escrow_requires_funding`. STILL NEEDS: deploy fresh Studio instance and confirm the payable form (Value field) works on-chain.
-2. **`resolve` UNDETERMINED / validator disagreement on hosted Studio** — different LLM policies occasionally produce "leader verdict was not valid JSON" on their side; quorum usually still reached. Mitigations if needed: lenient compare tolerance in `validator_fn`, clearer prompt format instructions, retries.
-3. ~~`gl.eth.send(Address, u256)` unverified~~ **RESOLVED**: official API is `gl.get_contract_at(addr).emit_transfer(value=u256(...))` — verified ON-CHAIN (settlement succeeded 2026-09-14).
-4. **README.md is stale** — still describes payable create_escrow and old storage; update after fund-locking decision (§5.1).
+1. ~~🔴 Fund-locking~~ **DONE** — payable restored & verified on-chain (2026-09-14). Schema-check tooling: local `get_schema` (from extracted SDK) + `load_contract_class` + wasi injection + `os.unlink` Windows patch — see session notes in §2/§7.
+2. **Appeal path on-chain** — new "cannot verify = PARTIAL" prompt rules pushed (`406f4fa`), verify tomorrow with the genesis-wallet escrow (§7). If LLM STILL says REFUND, next lever: make the rule even more explicit or add an example to LEADER_PROMPT.
+3. **README.md stale** — rewrite: current payable flow, Studio instructions (Value field!), local test setup, architecture table already fine.
+4. **Validator disagreement noise** — normal, quorum reached in practice; revisit only if a resolve ends UNDETERMINED twice in a row.
 5. **glsim for consensus-like local testing** (optional): `pip install genlayer-test[sim]` then `glsim --port 4000 --validators 5`.
 
 ---
@@ -107,16 +113,19 @@ When pasting from GitHub: always Raw → Ctrl+A → Ctrl+C; make sure file is fu
 
 ---
 
-## 7. Quick-start next session (copy-paste block)
+## 7. Quick-start tomorrow (copy-paste block)
 
 ```powershell
 cd C:\Users\Asus\Desktop\git\ProofCourt
-git status
-.venv\Scripts\pytest tests/direct -v          # expect: 10 passed
-# THEN the main task — fund-locking (§5.1):
-#  1. inspect test_payable.py, run it locally against the direct VM
-#  2. try @gl.public.write.payable on a minimal contract for the Studio schema parser
-#  3. if OK: restore payable create_escrow, update tests, deploy fresh Studio instance
+git pull
+.venv\Scripts\pytest tests/direct -v          # expect: 11 passed
+# TASK 1 — verify new prompt rules on-chain (appeal demo):
+#   Studio: paste latest contract.py -> Upgrade code (instance 0xe1...80ED keeps state)
+#   create_escrow: condition=genesis-wallet condition (§1), beneficiary=wallet, deadline=2026-10-01, Value=50
+#   submit_claim -> resolve  =>  expect PARTIAL (partial_details says what evidence closes the gap)
+#   appeal -> resolve        =>  expect REFUND
+# TASK 2 — rewrite README.md (payable flow, Value field, local tests, architecture)
+# TASK 3 — two-account demo video (payer != beneficiary; bogus claim -> REFUND; appeal -> release)
 ```
 
 Studio playbook: §4. Open issues: §5.
