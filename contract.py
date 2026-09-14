@@ -324,7 +324,7 @@ class ProofCourt(gl.Contract):
         pass
 
     @gl.public.write
-    def create_escrow(self, condition: str, beneficiary: Address, deadline: str, amount: str) -> str:
+    def create_escrow(self, condition: str, beneficiary: str, deadline: str, amount: str) -> str:
         if int(amount) <= 0:
             raise gl.vm.UserError("amount must be greater than zero")
         escrow_id = "escrow-" + str(int(self.escrow_count) + 1)
@@ -334,7 +334,7 @@ class ProofCourt(gl.Contract):
             "claim_text": "",
             "claim_links": "",
             "payer": gl.message.sender_address.as_hex,
-            "beneficiary": beneficiary.as_hex,
+            "beneficiary": beneficiary,
             "amount": str(int(amount)),
             "token": "native",
             "deadline": deadline,
