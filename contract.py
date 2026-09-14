@@ -1,5 +1,5 @@
-# v0.1.0
 # { "Depends": "py-genlayer:latest" }
+# v0.1.0
 from dataclasses import dataclass
 
 import json
@@ -549,5 +549,19 @@ class ProofCourt(gl.Contract):
         )
 
     @gl.public.view
-    def get_verdict_log(self) -> DynArray[VerdictRecord]:
-        return self.verdict_log
+    def get_verdict_log(self) -> str:
+        records = []
+        for record in self.verdict_log:
+            records.append(
+                {
+                    "escrow_id": record.escrow_id,
+                    "stage": record.stage,
+                    "round": int(record.round),
+                    "verdict": record.verdict,
+                    "confidence": record.confidence,
+                    "evidence_summary": record.evidence_summary,
+                    "reasoning": record.reasoning,
+                    "details": record.details,
+                }
+            )
+        return json.dumps(records)
