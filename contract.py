@@ -1,4 +1,4 @@
-# { "Depends": "py-genlayer:latest" }
+# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqmwsfhh8jpz09h6" }
 # v0.1.0
 from dataclasses import dataclass
 
@@ -204,7 +204,7 @@ def _fetch_links(links: str) -> str:
         if not link:
             continue
         try:
-            body = gl.nondet.web.get(link).body.decode("utf-8", "replace")
+            body = str(gl.nondet.web.render(link, mode="text"))
             parts.append(link + "\n" + body[:MAX_LINK_BODY_CHARS])
         except Exception:
             parts.append(link + "\n[FETCH FAILED]")
@@ -334,9 +334,7 @@ class ProofCourt(gl.Contract):
     verdict_log: DynArray[VerdictRecord]
 
     def __init__(self):
-        self.escrows = TreeMap()
-        self.escrow_count = u256(0)
-        self.verdict_log = DynArray()
+        pass
 
     @gl.public.write.payable
     def create_escrow(self, condition: str, beneficiary: Address, deadline: str) -> str:
