@@ -6,7 +6,17 @@ Project: AI-jury escrow arbitration on GenLayer (Leader / Compare / Appeal promp
 
 ---
 
-## 0. ✅ FULL CYCLE VERIFIED ON-CHAIN (2026-09-15) — MVP IS COMPLETE
+## 0. ⚠️ BLOCKER: Studio Next (Studio Dev) is BROKEN — not our code (2026-09-15)
+
+The hackathon form requires a Studio Next (chain 61997) deployment, but **Studio Dev cannot load ANY contract right now** — `gen_getContractSchemaForCode` fails with `invalid_contract runner malformed` for every file (even t0 minimal and GenLayer's own example). Root cause: GenVM v0.3.0-rc7 on Studio Dev cannot load the registered py-genlayer runner (`chain:0x0:d:q805cc3...`).
+- Confirmed upstream: genlayer-studio issue **#1757** "Studio Dev rejects its own v0.3 contract during schema extraction" (open since 2026-09-04, no response) + related #1762 (legacy v0.2 contract compatibility).
+- Bisect artifacts saved in `tests/next/t0*.py`, `t1_basic.py`, `t2_payable.py`, `t3_storage.py` (all pass local schema check).
+- **ACTION: retry the Studio Next deploy daily** (paste contract.py → deploy). The moment issue #1757 is fixed, deployment takes 5 minutes.
+- Fallback for the form meanwhile: use the hosted-Studio instance link (`0xB5FA28f768FcB575cf20a61153e4cf1F4E7A92eb` — full cycle verified there) and reference issue #1757 as proof the Studio Next blocker is upstream, not the project.
+
+---
+
+## 0b. ✅ FULL CYCLE VERIFIED ON-CHAIN (2026-09-15) — MVP IS COMPLETE
 
 Instance `0xB5FA28f768FcB575cf20a61153e4cf1F4E7A92eb` (deployed from latest code with new prompt rules):
 - escrow-1 (genesis-wallet condition, Value 100 GEN): resolve round 0 → **PARTIAL 0.25** (new rules work: "cannot verify" ≠ REFUND; reasoning literally cites the rule) → `appeal` → condition rewritten to 3 atomic binary checks (`appeal_round: 1`, `revised_checks` populated) → resolve round 1 (tx `0x2bbd`) → **PARTIAL 0.0 SUCCESS** (honest: leader has NO live web access). Final state: PARTIAL, funds still locked.
