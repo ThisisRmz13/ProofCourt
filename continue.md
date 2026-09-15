@@ -18,6 +18,14 @@ The hackathon form requires a Studio Next (chain 61997) deployment, but **Studio
 
 ## 0b. ✅ FULL CYCLE VERIFIED ON-CHAIN (2026-09-15) — MVP IS COMPLETE
 
+## 0c. 🎉 WEBSITE WRITE PATH VERIFIED (2026-09-15 night)
+
+The Live courtroom page (`proofcourt.pages.dev/try`) creates escrows ON-CHAIN with a connected wallet:
+- `create_escrow` with Value=1 GEN succeeded multiple times from the browser (wallet + genlayer-js). Confirmed by reading the chain with a local Node script (genlayer-js): **escrow-3 … escrow-11 all OPEN, 1 GEN each** (user clicked repeatedly because the page mis-detected success).
+- Fixes shipped: BigInt.toJSON polyfill (wallet tx serialization), receipt success detection (genlayer-js simplified receipt has NO txExecutionResultName; execution result lives in `consensus_data.leader_receipt[0].execution_result` = "SUCCESS"; returned escrow id findable via /"escrow-\d+"/ in the receipt JSON).
+- Cleanup TODO (optional): 9 dust escrows (1 GEN each) sit OPEN on `0xB5FA…92eb` — resolving them from Studio (payer == beneficiary) returns the 1 GEN each. Harmless either way.
+- Demo script for the site: open /try → state auto-loads → create escrow (Value 1) → ✓ finalized + escrow id shown → Read escrow → live on-chain state. Writes via site, jury via Studio, everything on-chain.
+
 Instance `0xB5FA28f768FcB575cf20a61153e4cf1F4E7A92eb` (deployed from latest code with new prompt rules):
 - escrow-1 (genesis-wallet condition, Value 100 GEN): resolve round 0 → **PARTIAL 0.25** (new rules work: "cannot verify" ≠ REFUND; reasoning literally cites the rule) → `appeal` → condition rewritten to 3 atomic binary checks (`appeal_round: 1`, `revised_checks` populated) → resolve round 1 (tx `0x2bbd`) → **PARTIAL 0.0 SUCCESS** (honest: leader has NO live web access). Final state: PARTIAL, funds still locked.
 - escrow-2 (same condition): resolve → **REFUND 0.98** (different LLM used affirmative training-knowledge contradiction: genesis wallet never spent) → closed, funds returned.

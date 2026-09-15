@@ -259,12 +259,19 @@
       });
       setStatus(statusId, label + ' — tx ' + txHash.slice(0, 10) + '… sent. Consensus takes 1–2 min…');
       const receipt = await waitReceipt(readClient, txHash);
-      const resultName = String(receipt.txExecutionResultName || receipt.executionResultName || '');
-      const resultBody = receipt.txExecutionResult || receipt.execution_result || receipt.error || '';
-      const ok = resultName.includes('RETURN');
+      const r = receipt || {};
+      const name = String(r.txExecutionResultName || r.result_name || r.statusName || '');
+      const lr = r.consensus_data && Array.isArray(r.consensus_data.leader_receipt) ? r.consensus_data.leader_receipt : [];
+      const leaderExec = String((lr[0] && lr[0].execution_result) ?? '');
+      const ok = /RETURN|SUCCESS|AGREE/i.test(name) || /SUCCESS/i.test(leaderExec) || leaderExec === '0';
+      let ret = '';
+      try {
+        const m = JSON.stringify(r).match(/"escrow-\d+"/);
+        if (m) ret = m[0].replace(/"/g, '');
+      } catch { /* ignore */ }
       setStatus(statusId, ok
-        ? label + ' ✓ finalized' + (resultBody ? ' → ' + String(resultBody).slice(0, 80) : '')
-        : label + ' finished with error: ' + (resultName || 'unknown') + (resultBody ? ' — ' + String(resultBody).slice(0, 200) : ' — full receipt: ' + JSON.stringify(receipt).slice(0, 200)), ok ? 'ok' : 'err');
+        ? label + ' ✓ finalized' + (ret ? ' → ' + ret : '')
+        : label + ' failed: ' + (name || 'unknown') + ' — ' + JSON.stringify(r).slice(0, 240), ok ? 'ok' : 'err');
       if (ok) { $('readId').value = $('escrowId').value; readEscrow(); }
     } catch (e) {
       setStatus(statusId, label + ' failed: ' + (e.shortMessage || e.message), 'err');
