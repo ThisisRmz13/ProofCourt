@@ -285,7 +285,12 @@
       $('mReasoning').textContent = esc.reasoning || '—';
       $('mPartial').textContent = esc.partial_details || '—';
       $('partialSect').style.display = esc.partial_details ? '' : 'none';
-      $('mChecks').textContent = esc.revised_checks || '—';
+      try {
+        const checks = typeof esc.revised_checks === 'string' && esc.revised_checks.startsWith('[') ? JSON.parse(esc.revised_checks) : esc.revised_checks;
+        $('mChecks').innerHTML = Array.isArray(checks)
+          ? '<ul style="margin:0 0 0 18px">' + checks.map(c => '<li>' + c + '</li>').join('') + '</ul>'
+          : String(checks || '—');
+      } catch { $('mChecks').textContent = esc.revised_checks || '—'; }
       $('checksSect').style.display = esc.revised_checks ? '' : 'none';
       setStatus('readStatus', 'Read ok — state: accepted', 'ok');
     } catch (e) {
