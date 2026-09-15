@@ -376,7 +376,7 @@ class ProofCourt(gl.Contract):
     @gl.public.write
     def submit_claim(self, escrow_id: str, claim_text: str, claim_links: str):
         escrow = _load_escrow(self.escrows, escrow_id)
-        if gl.message.sender_address.as_hex != escrow["beneficiary"]:
+        if gl.message.sender_address.as_hex.lower() != str(escrow["beneficiary"]).lower():
             raise gl.vm.UserError("only the beneficiary can submit a claim")
         if escrow["status"] != "OPEN":
             raise gl.vm.UserError("a claim was already submitted")

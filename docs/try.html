@@ -340,7 +340,7 @@
   $('network').onchange = async () => { readClient = null; setStatus('walletInfo', 'Client rebuilt for ' + $('network').value + ' — reconnect wallet for writes', ''); walletAddress = null; $('connectBtn').textContent = 'Connect wallet'; };
   $('createBtn').onclick = () => doWrite('createBtn', 'createStatus', () => ({
     functionName: 'create_escrow',
-    args: [$('cond').value.trim(), $('benef').value.trim(), $('deadline').value.trim()],
+    args: [$('cond').value.trim(), $('benef').value.trim().toLowerCase(), $('deadline').value.trim()],
     value: toWei($('value').value),
   }), 'create_escrow');
   $('claimBtn').onclick = () => doWrite('claimBtn', 'writeStatus', () => ({
