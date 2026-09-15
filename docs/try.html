@@ -155,6 +155,15 @@
 </div>
 
 <script type="module">
+  // Wallet providers JSON-serialize tx params somewhere along the way;
+  // teach JSON.stringify to handle BigInt (genlayer-js passes value as BigInt).
+  if (typeof BigInt.prototype.toJSON !== 'function') {
+    Object.defineProperty(BigInt.prototype, 'toJSON', {
+      value: function () { return '0x' + this.toString(16); },
+      enumerable: false,
+    });
+  }
+
   const RPC_DEFAULT = {
     studioNext: 'https://studio-dev.genlayer.com/api',
     studionet: null,
