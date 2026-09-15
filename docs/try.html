@@ -260,10 +260,12 @@
       setStatus(statusId, label + ' — tx ' + txHash.slice(0, 10) + '… sent. Consensus takes 1–2 min…');
       const receipt = await waitReceipt(readClient, txHash);
       const r = receipt || {};
-      const name = String(r.txExecutionResultName || r.result_name || r.statusName || '');
       const lr = r.consensus_data && Array.isArray(r.consensus_data.leader_receipt) ? r.consensus_data.leader_receipt : [];
-      const leaderExec = String((lr[0] && lr[0].execution_result) ?? '');
-      const ok = /RETURN|SUCCESS|AGREE/i.test(name) || /SUCCESS/i.test(leaderExec) || leaderExec === '0';
+      const leaderExec = String((lr[0] && lr[0].execution_result) ?? '').toUpperCase();
+      // result_name is MAJORITY_AGREE even for reverted executions — the
+      // leader's genvm execution_result is the only success signal.
+      const ok = leaderExec === 'SUCCESS' || leaderExec === '0' || leaderExec === 'FINISHED_WITH_RETURN';
+      const genvmErr = String((lr[0] && (lr[0].genvm_result ?? lr[0].stderr)) || '').slice(0, 160);
       let ret = '';
       try {
         const m = JSON.stringify(r).match(/"escrow-\d+"/);
@@ -271,7 +273,7 @@
       } catch { /* ignore */ }
       setStatus(statusId, ok
         ? label + ' ✓ finalized' + (ret ? ' → ' + ret : '')
-        : label + ' failed: ' + (name || 'unknown') + ' — ' + JSON.stringify(r).slice(0, 240), ok ? 'ok' : 'err');
+        : label + ' execution ' + (leaderExec || 'UNKNOWN') + (genvmErr ? ' — ' + genvmErr : ''), ok ? 'ok' : 'err');
       if (ok) { $('readId').value = $('escrowId').value; readEscrow(); }
     } catch (e) {
       setStatus(statusId, label + ' failed: ' + (e.shortMessage || e.message), 'err');
