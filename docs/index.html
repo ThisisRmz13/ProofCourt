@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProofCourt — On-chain AI Arbitration for Escrows</title>
+<meta name="description" content="A decentralized arbitration court where an AI jury independently investigates escrow claims and settles RELEASE, PARTIAL or REFUND — with appeals. Built on GenLayer.">
+<style>
+  :root {
+    --bg: #0e1626; --bg2: #182440; --card: #131f36; --line: #24334f;
+    --gold: #f5c854; --gold-dim: #c69e3e; --text: #e8edf5; --muted: #9aa8bf;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+  header { padding: 28px 0; border-bottom: 1px solid var(--line); }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 20px; }
+  .brand img { width: 40px; height: 40px; border-radius: 9px; }
+  .brand span b { color: var(--gold); }
+  nav a { color: var(--muted); text-decoration: none; margin-left: 22px; font-size: 14px; }
+  nav a:hover { color: var(--gold); }
+  .hero { text-align: center; padding: 90px 0 70px; }
+  .hero img { width: 130px; height: 130px; border-radius: 26px; margin-bottom: 28px; box-shadow: 0 18px 60px rgba(245,200,84,.15); }
+  h1 { font-size: 46px; line-height: 1.15; letter-spacing: -.5px; }
+  h1 b { color: var(--gold); }
+  .hero p { color: var(--muted); font-size: 19px; max-width: 720px; margin: 20px auto 30px; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  .badge { border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 13px; padding: 6px 14px; border-radius: 999px; }
+  .badge.gold { color: var(--gold); border-color: var(--gold-dim); }
+  .cta { display: inline-block; margin: 26px 8px 0; padding: 13px 28px; border-radius: 12px; text-decoration: none; font-weight: 600; font-size: 15px; }
+  .cta.primary { background: var(--gold); color: #10151d; }
+  .cta.primary:hover { background: #ffd76e; }
+  .cta.ghost { border: 1px solid var(--line); color: var(--text); }
+  .cta.ghost:hover { border-color: var(--gold-dim); color: var(--gold); }
+  section { padding: 60px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 30px; margin-bottom: 8px; }
+  h2::after { content: ""; display: block; width: 56px; height: 3px; background: var(--gold); border-radius: 2px; margin-top: 10px; }
+  .sub { color: var(--muted); margin-bottom: 36px; max-width: 760px; }
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .step { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .step b { color: var(--gold); display: block; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .step span { font-size: 14px; color: var(--text); }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  .card h3 { font-size: 18px; color: var(--gold); margin-bottom: 10px; }
+  .card p { color: var(--muted); font-size: 14.5px; }
+  ul.feat { list-style: none; display: grid; gap: 14px; }
+  ul.feat li { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; font-size: 15px; }
+  ul.feat li b { color: var(--gold); }
+  .quote { background: linear-gradient(135deg, var(--card), var(--bg2)); border: 1px solid var(--gold-dim); border-radius: 16px; padding: 26px 30px; margin-top: 30px; }
+  .quote p { font-size: 16px; }
+  .quote small { color: var(--muted); }
+  footer { border-top: 1px solid var(--line); padding: 34px 0; color: var(--muted); font-size: 14px; text-align: center; }
+  footer a { color: var(--gold); text-decoration: none; }
+  ol.try { margin: 10px 0 0 20px; color: var(--muted); font-size: 15px; display: grid; gap: 8px; }
+  ol.try b { color: var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="brand"><img src="logo.png" alt="ProofCourt logo"><span><b>Proof</b>Court</span></div>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#roles">The jury</a>
+      <a href="#try">Try it</a>
+      <a href="https://github.com/ThisisRmz13/ProofCourt">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<div class="hero wrap">
+  <img src="logo.png" alt="ProofCourt">
+  <h1>The escrow that <b>investigates</b> before it pays</h1>
+  <p>A decentralized arbitration court for natural-language escrow conditions. An AI jury independently investigates each claim — the claim itself is never evidence — and settles RELEASE, PARTIAL or REFUND on-chain, with an appeals process.</p>
+  <div class="badges">
+    <span class="badge gold">Built on GenLayer</span>
+    <span class="badge">Multi-LLM consensus</span>
+    <span class="badge">On-chain audit log</span>
+    <span class="badge">Payable fund-locking</span>
+    <span class="badge">11 local tests green</span>
+  </div>
+  <a class="cta primary" href="https://github.com/ThisisRmz13/ProofCourt">View the contract</a>
+  <a class="cta ghost" href="#try">Reproduce the demo</a>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <h2>How a dispute is settled</h2>
+    <p class="sub">Escrow litigation, not an oracle call: standards of proof in code, adversarial validation, and an appeals loop that sharpens vague conditions until they are decidable.</p>
+    <div class="flow">
+      <div class="step"><b>1 · Lock</b><span>Payer creates an escrow with a plain-language condition. Funds are locked from their wallet (payable).</span></div>
+      <div class="step"><b>2 · Claim</b><span>Beneficiary files the claim. Links they provide are fetched and marked UNTRUSTED.</span></div>
+      <div class="step"><b>3 · Investigate</b><span>A leader model independently gathers evidence; validators on different LLMs re-derive the verdict and vote.</span></div>
+      <div class="step"><b>4 · Verdict</b><span>RELEASE pays the beneficiary, REFUND returns to the payer, PARTIAL keeps funds locked.</span></div>
+      <div class="step"><b>5 · Appeal</b><span>PARTIAL rewrites the condition into strict atomic checks, then the court resolves again.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="roles">
+  <div class="wrap">
+    <h2>Three AI roles, one standard of proof</h2>
+    <p class="sub">No single model decides anything. Every outcome requires independent agreement before money moves.</p>
+    <div class="cards">
+      <div class="card"><h3>Leader</h3><p>Investigates the claim: block-explorer traces, API responses, timestamps, amounts, recipients. Runs an explicit anti-deception checklist (claimant-hosted links, wrong direction, out-of-context logs).</p></div>
+      <div class="card"><h3>Jury</h3><p>Validators running different LLM policies re-derive the verdict from their own investigation — ignoring the leader's summary — and vote. A low-confidence RELEASE is downgraded to PARTIAL automatically.</p></div>
+      <div class="card"><h3>Appeal judge</h3><p>Rewrites a failed condition into strict, atomic, binary checks resolvable from on-chain or API data, removing every judgment call.</p></div>
+    </div>
+    <div class="quote">
+      <p>"Cannot verify" is <b style="color:var(--gold)">PARTIAL</b>, not REFUND. Verified live on GenLayer: the same unverifiable claim produced <b>PARTIAL 0.25</b> from one model and <b>REFUND 0.98</b> from another — exactly why ProofCourt requires consensus instead of trusting a single LLM.</p>
+      <small>— observed on-chain, GenLayer Studio full-consensus run</small>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Design decisions that matter</h2>
+    <ul class="feat">
+      <li><b>The claim is never evidence.</b> Beneficiary-supplied links are fetched and labeled UNTRUSTED; the leader must verify independently.</li>
+      <li><b>Confidence thresholds live in code.</b> High-value escrows require confidence ≥ 0.9; a weak RELEASE is downgraded to appealable PARTIAL, never guessed.</li>
+      <li><b>Every verdict is on-chain.</b> Verdicts, confidence, evidence summaries and reasoning land in an append-only audit log anyone can read.</li>
+      <li><b>Funds are locked, not promised.</b> Escrows are payable — the money is held by the contract from creation, and settles automatically.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="try">
+  <div class="wrap">
+    <h2>Reproduce the demo</h2>
+    <ol class="try">
+      <li><b>Open GenLayer Studio</b> and paste <code>contract.py</code> from the repository → Deploy new instance.</li>
+      <li><b>Create an escrow:</b> condition "Bitcoin block 800000 exists on the Bitcoin blockchain and was mined before 2025", your address as beneficiary, Value = 100.</li>
+      <li><b>File a claim:</b> <code>submit_claim</code> — the leader fetches evidence and the jury votes (1–2 min).</li>
+      <li><b>Read the verdict:</b> <code>get_escrow</code> + <code>get_verdict_log</code> — full reasoning, confidence and evidence, on-chain.</li>
+      <li><b>Test the appeal:</b> an unverifiable condition returns PARTIAL; <code>appeal</code> rewrites it into atomic checks and the court resolves again.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">ProofCourt — built on <a href="https://www.genlayer.com">GenLayer</a> · <a href="https://github.com/ThisisRmz13/ProofCourt">github.com/ThisisRmz13/ProofCourt</a></div>
+</footer>
+
+</body>
+</html>
