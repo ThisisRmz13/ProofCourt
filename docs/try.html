@@ -81,8 +81,8 @@
       <div>
         <label>Network</label>
         <select id="network">
+          <option value="studionet" selected>GenLayer Studio (chain 61999) — live demo</option>
           <option value="studioNext">Studio Next / Dev (chain 61997)</option>
-          <option value="studionet">Studionet</option>
         </select>
       </div>
       <div>
@@ -161,11 +161,12 @@
   };
 
   let mod, chains, readClient, chainObj, walletAddress = null;
-  let contractAddr = localStorage.getItem('pc_addr') || '';
+  let contractAddr = localStorage.getItem('pc_addr') || '0xB5FA28f768FcB575cf20a61153e4cf1F4E7A92eb';
 
   const $ = id => document.getElementById(id);
   $('contractAddr').value = contractAddr;
   $('benef').value = localStorage.getItem('pc_benef') || '';
+  window.addEventListener('load', () => { readEscrow().catch(() => {}); });
 
   function saveCfg() {
     contractAddr = $('contractAddr').value.trim();
