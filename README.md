@@ -44,7 +44,7 @@ anyone ──resolve()───────────────────�
 1. **The claim is never evidence.** Beneficiary-supplied links are fetched and passed to the model explicitly labeled *UNTRUSTED*. The prompts enforce independent verification: block-explorer traces, event logs, timestamps, amounts, recipients, token addresses, direction.
 2. **Anti-deception checklist baked into the prompt:** wrong amount / wrong recipient / wrong token / wrong direction / evidence out of order / correct transaction outside the time window / claimant-hosted data.
 3. **Confidence thresholds live in code, not prose.** Escrows above a value threshold require confidence ≥ 0.9 with direct on-chain proof; a low-confidence RELEASE is automatically downgraded to PARTIAL (appealable), never guessed.
-4. **PARTIAL is a first-class outcome.** When evidence is incomplete, the court doesn't guess — it makes the condition falsifiable (atomic binary checks via the Appeal prompt) and retries.
+4. **PARTIAL is a first-class outcome.** "Cannot verify" is never treated as "false": a leader may REFUND only on **affirmative contradiction** (wrong amount, wrong recipient, verifiably absent event). Anything it cannot verify from available data is PARTIAL — appealable, never guessed.
 5. **Every verdict is on-chain.** All verdicts, confidence scores, evidence summaries and reasoning are stored in `verdict_log` — anyone can audit *why* the money moved.
 
 ## Why this is not "just an Intelligent Oracle"
@@ -69,6 +69,27 @@ The oracle pattern answers questions. ProofCourt **settles disputes** — a diff
 
 The same flow works for freelance milestones, SLA credits, agent-to-agent commerce (x402/ACP payments), and insurance-style payouts.
 
+## Run it
+
+### On GenLayer Studio
+
+1. Open Studio → paste `contract.py` → **Deploy new instance** (consensus runs the deploy — wait for FINALIZED)
+2. `create_escrow(condition, beneficiary, deadline)` — it's **payable**: enter the escrow amount in the **Value** field (e.g. `100`). The funds are locked from the payer's wallet, not held by a trusted platform.
+3. `submit_claim(escrow_id, claim_text, claim_links)` — beneficiary files the claim
+4. `resolve(escrow_id)` — the jury runs: the leader fetches evidence from the live web (block explorers, APIs), validators on different LLM policies re-derive the verdict and vote. Takes 1–2 minutes; a couple of validator disagreements is normal, quorum decides.
+5. Read the outcome: `get_escrow(escrow_id)` (status/verdict/confidence/evidence) and `get_verdict_log()` (full audit trail)
+6. If PARTIAL: `appeal(escrow_id)` rewrites the condition into strict atomic checks → `resolve` again
+
+### Local test suite (no Studio needed)
+
+```bash
+python -m venv .venv            # Python 3.12+ required
+.venv\Scripts\pip install genlayer-test
+.venv\Scripts\pytest tests/direct -v
+```
+
+11 tests run against an in-memory direct VM with mocked LLM/web: escrow lifecycle, beneficiary-only claims, RELEASE/REFUND flows, high-value confidence downgrade, leader-vs-jury disagreement, the full appeal → re-resolve loop, and funding guards. The direct VM also simulates `ExecPromptTemplate` (equivalence principles) and sandboxed validators, so validator logic is testable locally via `direct_vm.run_validator()`.
+
 ## Contract API (v0.1.0)
 
 | Method | Type | Description |
@@ -90,7 +111,8 @@ The same flow works for freelance milestones, SLA credits, agent-to-agent commer
 ## Status & roadmap
 
 - [x] v0.1.0 — contract with full leader/jury/appeal flow, payable escrow, verdict log
-- [ ] Deploy + end-to-end test on GenLayer Studio / localnet
+- [x] Deployed + verified end-to-end on GenLayer Studio (full consensus: create → claim → RELEASE with real web evidence → settlement; guards and audit log verified on-chain)
+- [ ] Appeal loop demonstrated on-chain (PARTIAL → appeal → REFUND) — prompt rules updated, pending retest
 - [ ] Multi-source evidence cross-checking (block explorer + archive API) with LLM adjudication on disagreement
 - [ ] Per-condition evidence source registry (GitHub API, Etherscan, uptime monitors)
 - [ ] Stake-weighted juror incentives and slashing for provably lazy validation
