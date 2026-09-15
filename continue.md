@@ -1,17 +1,19 @@
 # ProofCourt — Resume Notes (continue here tomorrow)
 
-Last updated: 2026-09-14 (~10:30 PM session — END OF DAY, resume from §7)
+Last updated: 2026-09-15 session
 Repo: https://github.com/ThisisRmz13/ProofCourt (branch `main`, all pushed)
 Project: AI-jury escrow arbitration on GenLayer (Leader / Compare / Appeal prompts).
 
 ---
 
-## 0. ✅ END-OF-DAY STATE (read this first)
+## 0. ✅ FULL CYCLE VERIFIED ON-CHAIN (2026-09-15) — MVP IS COMPLETE
 
-1. **Fund-locking LIVE on-chain**: `create_escrow` is `@gl.public.write.payable`, amount = `gl.message.value` (Value field in Studio form). Verified: deploy + escrow-1 (Value=100 GEN) → RELEASED. The old "payable breaks schema" was a MISDIAGNOSIS — real culprits were `beneficiary: Address` param (Studio sends ints) and a stray `# v0.1.0` second line.
-2. **Prompt fairness fix pushed (NOT yet verified on-chain)**: unverifiable element = PARTIAL (appealable), REFUND only for affirmative contradiction. Old prompts let LLMs answer "cannot verify" with REFUND (seen live on escrow-2: reasoning literally said "cannot be verified" → still REFUND).
-3. **Appeal demo on-chain still pending** — tomorrow's first task (§7): Upgrade code → new escrow with the genesis-wallet condition → expect PARTIAL → appeal → REFUND.
-4. Local tests: **11/11 green** (`tests/direct`, direct mode).
+Instance `0xB5FA28f768FcB575cf20a61153e4cf1F4E7A92eb` (deployed from latest code with new prompt rules):
+- escrow-1 (genesis-wallet condition, Value 100 GEN): resolve round 0 → **PARTIAL 0.25** (new rules work: "cannot verify" ≠ REFUND; reasoning literally cites the rule) → `appeal` → condition rewritten to 3 atomic binary checks (`appeal_round: 1`, `revised_checks` populated) → resolve round 1 (tx `0x2bbd`) → **PARTIAL 0.0 SUCCESS** (honest: leader has NO live web access). Final state: PARTIAL, funds still locked.
+- escrow-2 (same condition): resolve → **REFUND 0.98** (different LLM used affirmative training-knowledge contradiction: genesis wallet never spent) → closed, funds returned.
+- Guards verified: `appeal` without PARTIAL → rejected; `resolve` on closed escrow → rejected ("escrow is not awaiting resolution", MAJORITY_AGREE).
+- **Demo gold**: same condition → PARTIAL 0.25 (one LLM) vs REFUND 0.98 (another) — perfect illustration of why multi-validator consensus is needed.
+- Key product insight: the leader LLM has no live web in hosted Studio; **`claim_links` is the only real evidence channel** (contract fetches them via `web.render` and inlines into the prompt). Earlier "Blockstream API" evidence quotes were LLM hallucinations (timestamps inconsistent across runs). For a RELEASE demo, submit a claim WITH a real link (e.g. `https://mempool.space/api/block-height/800000`).
 
 ## 1. Where we are RIGHT NOW
 
@@ -31,12 +33,13 @@ Project: AI-jury escrow arbitration on GenLayer (Leader / Compare / Appeal promp
 - Suggested condition for the appeal demo: `Bitcoin block 800000 exists on the blockchain, AND the beneficiary received a 0.1 BTC payment from Satoshi's genesis wallet (no transaction hash is provided)` — with NEW rules this must be PARTIAL (genesis wallet payment = cannot verify, not contradiction)
 - `test_min.py` deploys fine (smoke test for the environment)
 
-### Hackathon submission readiness (updated end of day)
-1. ✅ Fund-locking — DONE & verified on-chain
-2. 🟡 Appeal path on Studio — new prompt rules pushed, needs on-chain verification (first task tomorrow)
-3. 🟡 README.md — still stale (old payable narrative, old test instructions); update with current flow + local test setup
-4. 🟡 Two-account demo video (payer ≠ beneficiary, bogus claim → REFUND, appeal flow)
-5. 🟢 Frontend optional (Next.js boilerplate + genlayer-js)
+### Hackathon submission readiness (updated 2026-09-15)
+1. ✅ Fund-locking — DONE & verified on-chain (payable Value field)
+2. ✅ Appeal loop on-chain — DONE (PARTIAL → atomic rewrite → re-resolve; guards verified)
+3. ✅ README — updated (Run-it guide, verified status, fairness rule)
+4. 🟡 Two-account demo video (payer ≠ beneficiary; bogus claim → REFUND; appeal flow) — NEXT
+5. 🟢 Optional: escrow with real `claim_links` → RELEASE demo (the evidence channel)
+6. 🟢 Frontend (Next.js boilerplate + genlayer-js) — only if time allows
 
 ### Local test suite (NEW — this is our debugging engine now)
 - venv: `.venv` (Python **3.12.10** — genlayer-test needs >= 3.12; 3.11 fails on `collections.abc.Buffer`)
