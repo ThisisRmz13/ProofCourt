@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProofCourt — Live Courtroom</title>
+<style>
+  :root {
+    --bg: #0e1626; --bg2: #182440; --card: #131f36; --line: #24334f;
+    --gold: #f5c854; --gold-dim: #c69e3e; --text: #e8edf5; --muted: #9aa8bf;
+    --ok: #4ade80; --warn: #fbbf24; --bad: #f87171;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  .brand img { width: 36px; height: 36px; border-radius: 8px; }
+  .brand span b { color: var(--gold); }
+  .brand a { color: var(--muted); font-size: 13px; text-decoration: none; margin-left: 12px; }
+  .brand a:hover { color: var(--gold); }
+  h1 { font-size: 26px; margin: 26px 0 4px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
+  .panel h2 { font-size: 15px; text-transform: uppercase; letter-spacing: .8px; color: var(--gold); margin-bottom: 14px; }
+  label { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
+  input, textarea, select { width: 100%; background: #0b1220; border: 1px solid var(--line); color: var(--text); border-radius: 9px; padding: 9px 12px; font-size: 14px; font-family: inherit; }
+  input:focus, textarea:focus, select:focus { outline: none; border-color: var(--gold-dim); }
+  textarea { resize: vertical; min-height: 64px; }
+  button { background: var(--gold); color: #10151d; font-weight: 600; border: none; border-radius: 10px; padding: 10px 18px; font-size: 14px; cursor: pointer; margin-top: 12px; }
+  button:hover { background: #ffd76e; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); }
+  button.ghost:hover { border-color: var(--gold-dim); color: var(--gold); }
+  .row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .row > div { flex: 1; min-width: 140px; }
+  .status { font-size: 13px; color: var(--muted); margin-top: 10px; min-height: 18px; }
+  .status.err { color: var(--bad); }
+  .status.ok { color: var(--ok); }
+  .verdict-badge { display: inline-block; padding: 4px 14px; border-radius: 999px; font-weight: 700; font-size: 13px; letter-spacing: .5px; }
+  .v-RELEASED, .v-RELEASE { background: rgba(74,222,128,.15); color: var(--ok); }
+  .v-REFUNDED, .v-REFUND { background: rgba(248,113,113,.15); color: var(--bad); }
+  .v-PARTIAL { background: rgba(251,191,36,.15); color: var(--warn); }
+  .v-OPEN { background: rgba(154,168,191,.15); color: var(--muted); }
+  .v-CLAIMED { background: rgba(245,200,84,.15); color: var(--gold); }
+  .v-APPEALED { background: rgba(147,197,253,.15); color: #93c5fd; }
+  .meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+  .meta div { background: #0b1220; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+  .meta small { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; }
+  .meta span { font-size: 14px; word-break: break-all; }
+  .confbar { height: 8px; background: #0b1220; border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .confbar i { display: block; height: 100%; background: var(--gold); }
+  .sect { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+  .sect h3 { font-size: 12.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 6px; }
+  .sect p { font-size: 14px; color: var(--text); }
+  .logitem { border-left: 3px solid var(--gold-dim); padding: 8px 14px; margin: 10px 0; background: #0b1220; border-radius: 0 10px 10px 0; font-size: 13.5px; }
+  .logitem b { color: var(--gold); }
+  .hidden { display: none; }
+  code { background: #0b1220; padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+  .adv { margin-top: 14px; font-size: 12.5px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <img src="logo.png" alt="logo"><span><b>Proof</b>Court</span>
+      <a href="/">← back to site</a>
+    </div>
+    <button id="connectBtn" class="ghost">Connect wallet</button>
+  </header>
+
+  <h1>Live courtroom</h1>
+  <p class="sub">This page talks directly to the ProofCourt contract on GenLayer. Reads go straight to the RPC; writes are signed by your wallet.</p>
+
+  <div class="panel" style="margin-bottom:16px">
+    <h2>Connection</h2>
+    <div class="row">
+      <div>
+        <label>Network</label>
+        <select id="network">
+          <option value="studioNext">Studio Next (chain 61997)</option>
+          <option value="studionet">Studionet</option>
+        </select>
+      </div>
+      <div>
+        <label>Contract address</label>
+        <input id="contractAddr" placeholder="0x…">
+      </div>
+    </div>
+    <div class="adv" id="walletInfo">Wallet: not connected (reads still work)</div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Create escrow</h2>
+      <label>Condition (natural language)</label>
+      <textarea id="cond">Bitcoin block 800000 exists on the Bitcoin blockchain and was mined before 2025</textarea>
+      <div class="row">
+        <div><label>Beneficiary</label><input id="benef" placeholder="0x…"></div>
+        <div><label>Deadline</label><input id="deadline" value="2026-10-01"></div>
+      </div>
+      <div class="row">
+        <div><label>Value (GEN, locked)</label><input id="value" value="1"></div>
+      </div>
+      <button id="createBtn">Lock funds & create escrow</button>
+      <div class="status" id="createStatus"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Submit claim & resolve</h2>
+      <div class="row">
+        <div><label>Escrow id</label><input id="escrowId" value="escrow-1"></div>
+      </div>
+      <label>Claim text</label>
+      <textarea id="claim">The condition is satisfied. Verify it yourself.</textarea>
+      <label>Claim links (one per line — fetched by the contract, shown UNTRUSTED to the jury)</label>
+      <textarea id="links"></textarea>
+      <div class="row">
+        <button id="claimBtn">Submit claim</button>
+        <button id="resolveBtn">⚖ Run the jury (resolve)</button>
+        <button id="appealBtn" class="ghost">appeal</button>
+      </div>
+      <div class="status" id="writeStatus"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <h2>Escrow state — read directly from the chain</h2>
+    <div class="row">
+      <div><label>Escrow id</label><input id="readId" value="escrow-1"></div>
+      <div style="flex:0"><button id="readBtn">Read escrow</button></div>
+      <div style="flex:0"><button id="logBtn" class="ghost">Verdict log</button></div>
+    </div>
+    <div id="state" class="hidden" style="margin-top:14px">
+      <span class="verdict-badge" id="vStatus"></span>
+      <span class="verdict-badge" id="vVerdict" style="margin-left:8px"></span>
+      <div class="meta">
+        <div><small>Confidence</small><span id="mConf"></span><div class="confbar"><i id="confFill"></i></div></div>
+        <div><small>Amount (wei)</small><span id="mAmount"></span></div>
+        <div><small>Appeal round</small><span id="mRound"></span></div>
+        <div><small>Payer</small><span id="mPayer"></span></div>
+      </div>
+      <div class="sect"><h3>Condition</h3><p id="mCondition"></p></div>
+      <div class="sect"><h3>Evidence summary (what the jury verified)</h3><p id="mEvidence"></p></div>
+      <div class="sect"><h3>Reasoning</h3><p id="mReasoning"></p></div>
+      <div class="sect" id="partialSect"><h3>Partial details / gap</h3><p id="mPartial"></p></div>
+      <div class="sect" id="checksSect"><h3>Atomic checks (post-appeal)</h3><p id="mChecks"></p></div>
+    </div>
+    <div id="log" style="margin-top:10px"></div>
+    <div class="status" id="readStatus"></div>
+  </div>
+</div>
+
+<script type="module">
+  const RPC_DEFAULT = {
+    studioNext: 'https://studio-next.genlayer.com/api',
+    studionet: null,
+  };
+
+  let mod, chains, readClient, chainObj, walletAddress = null;
+  let contractAddr = localStorage.getItem('pc_addr') || '';
+
+  const $ = id => document.getElementById(id);
+  $('contractAddr').value = contractAddr;
+  $('benef').value = localStorage.getItem('pc_benef') || '';
+
+  function saveCfg() {
+    contractAddr = $('contractAddr').value.trim();
+    localStorage.setItem('pc_addr', contractAddr);
+    localStorage.setItem('pc_benef', $('benef').value.trim());
+  }
+
+  async function buildChain(name) {
+    const chainsMod = await import('https://esm.sh/genlayer-js@1.1.8/chains');
+    chains = chainsMod;
+    if (name === 'studionet') return chains.studionet;
+    if (chains.studioNext || chains.studio_next || chains.studioDev) {
+      return chains.studioNext || chains.studio_next || chains.studioDev;
+    }
+    const url = localStorage.getItem('pc_rpc') || RPC_DEFAULT.studioNext;
+    return {
+      id: 61997,
+      name: 'GenLayer Studio Next',
+      network: 'studioNext',
+      nativeCurrency: { name: 'GEN', symbol: 'GEN', decimals: 18 },
+      rpcUrls: { default: { http: [url] } },
+    };
+  }
+
+  async function ensureClient() {
+    const name = $('network').value;
+    chainObj = await buildChain(name);
+    mod = await import('https://esm.sh/genlayer-js@1.1.8');
+    readClient = mod.createClient({ chain: chainObj });
+    return readClient;
+  }
+
+  function walletClient() {
+    if (!walletAddress) throw new Error('Connect your wallet first');
+    return mod.createClient({ chain: chainObj, account: walletAddress, provider: window.ethereum });
+  }
+
+  function setStatus(id, msg, cls) {
+    const el = $(id);
+    el.textContent = msg;
+    el.className = 'status' + (cls ? ' ' + cls : '');
+  }
+
+  async function connect() {
+    try {
+      if (!window.ethereum) { setStatus('walletInfo', 'No EVM wallet found in this browser — use MetaMask, or send writes via Studio.', 'err'); return; }
+      await ensureClient();
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      walletAddress = accounts[0];
+      try { await readClient.connect($('network').value); } catch (e) { /* best effort chain switch */ }
+      $('connectBtn').textContent = walletAddress.slice(0, 6) + '…' + walletAddress.slice(-4);
+      $('walletInfo').textContent = 'Wallet: ' + walletAddress;
+      $('benef').placeholder = walletAddress;
+      if (!$('benef').value) $('benef').value = walletAddress;
+    } catch (e) {
+      setStatus('walletInfo', 'Wallet error: ' + e.message, 'err');
+    }
+  }
+
+  function toWei(genAmount) {
+    const [int, frac = ''] = String(genAmount).trim().split('.');
+    const frac18 = (frac + '000000000000000000').slice(0, 18);
+    return BigInt(int + frac18);
+  }
+
+  async function waitReceipt(client, hash) {
+    const { TransactionStatus } = await import('https://esm.sh/genlayer-js@1.1.8/types');
+    return client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, fullTransaction: false });
+  }
+
+  async function doWrite(btn, statusId, buildFn, label) {
+    saveCfg();
+    if (!contractAddr) { setStatus(statusId, 'Set the contract address first', 'err'); return; }
+    $(btn).disabled = true;
+    setStatus(statusId, label + ' — waiting for wallet signature…');
+    try {
+      const client = walletClient();
+      const { functionName, args, value } = buildFn();
+      const txHash = await client.writeContract({
+        address: contractAddr, functionName, args, value: value ?? BigInt(0),
+      });
+      setStatus(statusId, label + ' — tx ' + txHash.slice(0, 10) + '… sent. Consensus takes 1–2 min…');
+      const receipt = await waitReceipt(readClient, txHash);
+      const ok = String(receipt.txExecutionResultName || '').includes('RETURN');
+      setStatus(statusId, ok
+        ? label + ' ✓ finalized' + (receipt.txExecutionResult ? ' → ' + String(receipt.txExecutionResult).slice(0, 80) : '')
+        : label + ' finished with error: ' + (receipt.txExecutionResultName || 'unknown') + (receipt.txExecutionResult ? ' — ' + String(receipt.txExecutionResult).slice(0, 160) : ''), ok ? 'ok' : 'err');
+      if (ok) { $('readId').value = $('escrowId').value; readEscrow(); }
+    } catch (e) {
+      setStatus(statusId, label + ' failed: ' + (e.shortMessage || e.message), 'err');
+    } finally {
+      $(btn).disabled = false;
+    }
+  }
+
+  async function readEscrow() {
+    saveCfg();
+    if (!contractAddr) { setStatus('readStatus', 'Set the contract address first', 'err'); return; }
+    $('log').innerHTML = '';
+    setStatus('readStatus', 'Reading from chain…');
+    try {
+      const client = await ensureClient();
+      const raw = await client.readContract({
+        address: contractAddr, functionName: 'get_escrow', args: [$('readId').value.trim()], stateStatus: 'accepted',
+      });
+      const esc = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      $('state').classList.remove('hidden');
+      $('vStatus').textContent = esc.status; $('vStatus').className = 'verdict-badge v-' + esc.status;
+      $('vVerdict').textContent = esc.verdict || '—'; $('vVerdict').className = 'verdict-badge v-' + (esc.verdict || 'OPEN');
+      const conf = parseFloat(esc.confidence) || 0;
+      $('mConf').textContent = (conf * 100).toFixed(1) + '%';
+      $('confFill').style.width = (conf * 100) + '%';
+      $('mAmount').textContent = esc.amount; $('mRound').textContent = esc.appeal_round;
+      $('mPayer').textContent = esc.payer; $('mCondition').textContent = esc.condition;
+      $('mEvidence').textContent = esc.evidence_summary || '—';
+      $('mReasoning').textContent = esc.reasoning || '—';
+      $('mPartial').textContent = esc.partial_details || '—';
+      $('partialSect').style.display = esc.partial_details ? '' : 'none';
+      $('mChecks').textContent = esc.revised_checks || '—';
+      $('checksSect').style.display = esc.revised_checks ? '' : 'none';
+      setStatus('readStatus', 'Read ok — state: accepted', 'ok');
+    } catch (e) {
+      setStatus('readStatus', 'Read failed: ' + (e.shortMessage || e.message) + ' — check address / network / escrow id', 'err');
+    }
+  }
+
+  async function readLog() {
+    saveCfg();
+    if (!contractAddr) { setStatus('readStatus', 'Set the contract address first', 'err'); return; }
+    try {
+      const client = await ensureClient();
+      const raw = await client.readContract({
+        address: contractAddr, functionName: 'get_verdict_log', args: [], stateStatus: 'accepted',
+      });
+      const records = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      $('log').innerHTML = records.length
+        ? records.map(r => '<div class="logitem"><b>' + r.escrow_id + '</b> · ' + r.stage + ' · round ' + r.round +
+            ' → <b>' + (r.verdict || '—') + '</b> (confidence ' + r.confidence + ')<br>' +
+            (r.evidence_summary || '') + '</div>').join('')
+        : '<div class="logitem">No verdicts yet.</div>';
+      setStatus('readStatus', 'Log read ok', 'ok');
+    } catch (e) {
+      setStatus('readStatus', 'Log read failed: ' + (e.shortMessage || e.message), 'err');
+    }
+  }
+
+  $('connectBtn').onclick = connect;
+  $('network').onchange = async () => { readClient = null; setStatus('walletInfo', 'Client rebuilt for ' + $('network').value + ' — reconnect wallet for writes', ''); walletAddress = null; $('connectBtn').textContent = 'Connect wallet'; };
+  $('createBtn').onclick = () => doWrite('createBtn', 'createStatus', () => ({
+    functionName: 'create_escrow',
+    args: [$('cond').value.trim(), $('benef').value.trim(), $('deadline').value.trim()],
+    value: toWei($('value').value),
+  }), 'create_escrow');
+  $('claimBtn').onclick = () => doWrite('claimBtn', 'writeStatus', () => ({
+    functionName: 'submit_claim',
+    args: [$('escrowId').value.trim(), $('claim').value.trim(), $('links').value.trim()],
+  }), 'submit_claim');
+  $('resolveBtn').onclick = () => doWrite('resolveBtn', 'writeStatus', () => ({
+    functionName: 'resolve', args: [$('escrowId').value.trim()],
+  }), 'resolve');
+  $('appealBtn').onclick = () => doWrite('appealBtn', 'writeStatus', () => ({
+    functionName: 'appeal', args: [$('escrowId').value.trim()],
+  }), 'appeal');
+  $('readBtn').onclick = readEscrow;
+  $('logBtn').onclick = readLog;
+</script>
+</body>
+</html>
