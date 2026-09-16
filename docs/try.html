@@ -243,7 +243,10 @@
 
   async function waitReceipt(client, hash) {
     const { TransactionStatus } = await import('https://esm.sh/genlayer-js@1.1.8/types');
-    return client.waitForTransactionReceipt({ hash, status: TransactionStatus.FINALIZED, fullTransaction: false });
+    return client.waitForTransactionReceipt({
+      hash, status: TransactionStatus.FINALIZED, fullTransaction: false,
+      interval: 5000, retries: 72,
+    });
   }
 
   async function doWrite(btn, statusId, buildFn, label) {
@@ -276,7 +279,12 @@
         : label + ' execution ' + (leaderExec || 'UNKNOWN') + (genvmErr ? ' — ' + genvmErr : ''), ok ? 'ok' : 'err');
       if (ok) { $('readId').value = $('escrowId').value; readEscrow(); }
     } catch (e) {
-      setStatus(statusId, label + ' failed: ' + (e.shortMessage || e.message), 'err');
+      const msg = String(e.shortMessage || e.message || '');
+      if (/Timed out waiting/i.test(msg)) {
+        setStatus(statusId, label + ' — consensus still running (LLM jury can take a few minutes). Press "Read escrow" in a minute to see the result.');
+      } else {
+        setStatus(statusId, label + ' failed: ' + msg.slice(0, 220), 'err');
+      }
     } finally {
       $(btn).disabled = false;
     }
