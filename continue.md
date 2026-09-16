@@ -18,6 +18,9 @@ The hackathon form requires a Studio Next (chain 61997) deployment, but **Studio
 
 ## 0b. ✅ FULL CYCLE VERIFIED ON-CHAIN (2026-09-15) — MVP IS COMPLETE
 
+- **PRIMARY INSTANCE (fixed code, case-insensitive beneficiary): `0x15Ba2a50b175b0e3499B786A3823B643608Cce27`** — deployed 2026-09-16, fix marker verified via gen_getContractCode. Use this one for the live demo.
+- Legacy instance `0xB5FA28f768FcB575cf20a61153e4cf1F4E7A92eb` — old code (pre case-fix), holds the fully verified cycle (escrow-1 PARTIAL→appeal→re-resolve, escrow-2 REFUND, guards) + ~10 dust escrows of 1 GEN. Keep as the form's how-to link (its on-chain history is the proof) OR switch links to the new instance. Upgrade code on it FAILS with "Only contract deployer can upgrade" (Studio quirk) — that's why the fresh instance exists.
+
 ## 0c. 🎉 WEBSITE WRITE PATH VERIFIED (2026-09-15 night)
 
 The Live courtroom page (`proofcourt.pages.dev/try`) creates escrows ON-CHAIN with a connected wallet:
