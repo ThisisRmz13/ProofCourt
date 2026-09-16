@@ -268,7 +268,12 @@
       // result_name is MAJORITY_AGREE even for reverted executions — the
       // leader's genvm execution_result is the only success signal.
       const ok = leaderExec === 'SUCCESS' || leaderExec === '0' || leaderExec === 'FINISHED_WITH_RETURN';
-      const genvmErr = String((lr[0] && (lr[0].genvm_result ?? lr[0].stderr)) || '').slice(0, 160);
+      const genvmErr = (() => {
+        const g = lr[0] && (lr[0].genvm_result ?? lr[0].stderr);
+        if (g == null) return '';
+        const s = typeof g === 'object' ? JSON.stringify(g) : String(g);
+        return s.slice(0, 200);
+      })();
       let ret = '';
       try {
         const m = JSON.stringify(r).match(/"escrow-\d+"/);
