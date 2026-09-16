@@ -23,6 +23,10 @@ The hackathon form requires a Studio Next (chain 61997) deployment, but **Studio
 
 ## 0c. 🎉 WEBSITE WRITE PATH VERIFIED (2026-09-15 night)
 
+**COMPLETE LITIGATION ARC FROM THE FRONTEND (2026-09-16) — the flagship demo:**
+On instance `0x15Ba…ce27`, entirely from `proofcourt.pages.dev/try`:
+create_escrow (1 GEN locked) → submit_claim (CLAIMED) → resolve#1 → **PARTIAL 0.15** ("cannot verify — do not guess") → appeal → condition rewritten into 3 atomic binary checks (appeal_round 1) → resolve#2 → **RELEASE 0.96** (block 800000, ts < 2025-01-01) — funds released. The 0.15 → appeal → 0.96 arc is the core ProofCourt story for the demo video.
+
 The Live courtroom page (`proofcourt.pages.dev/try`) creates escrows ON-CHAIN with a connected wallet:
 - `create_escrow` with Value=1 GEN succeeded multiple times from the browser (wallet + genlayer-js). Confirmed by reading the chain with a local Node script (genlayer-js): **escrow-3 … escrow-11 all OPEN, 1 GEN each** (user clicked repeatedly because the page mis-detected success).
 - Fixes shipped: BigInt.toJSON polyfill (wallet tx serialization), receipt success detection (genlayer-js simplified receipt has NO txExecutionResultName; execution result lives in `consensus_data.leader_receipt[0].execution_result` = "SUCCESS"; returned escrow id findable via /"escrow-\d+"/ in the receipt JSON).
